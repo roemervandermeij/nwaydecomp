@@ -153,7 +153,7 @@ for imode = 2:nmode
   dimstring = [dimstring 'x' num2str(smode(imode))];
 end
 disp([dispprefix 'data is complex array with dimensions ' dimstring])
-disp([dispprefix 'a BBFSP4WAYCPFOURIER-model with ' num2str(ncomp) ' components will be estimated '])
+disp([dispprefix 'a SPACE-FSP model with ' num2str(ncomp) ' components will be estimated '])
 disp([dispprefix 'number of data-points per (relevant) parameter = ' num2str(prod(smode) ./ (sum([smodey([1 2 3]) smodey(1)*smodey(2) smodey(2)*smode(3)*smode(4)])*ncomp),'%-2.1f')])
 disp([dispprefix 'maximum number of iterations = ' num2str(nitt)])
 disp([dispprefix 'convergence criterion = ' num2str(convcrit)])

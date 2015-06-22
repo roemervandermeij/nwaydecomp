@@ -154,7 +154,7 @@ for imode = 2:nmode
   dimstring = [dimstring 'x' num2str(smode(imode))];
 end
 disp([dispprefix 'data is complex array with dimensions ' dimstring])
-disp([dispprefix 'a BB4WAYCPFOURIER-model with ' num2str(ncomp) ' components will be estimated '])
+disp([dispprefix 'a SPACE-TIME model with ' num2str(ncomp) ' components will be estimated '])
 % disp([dispprefix 'number of data-points per (relevant) parameter = ' num2str(prod(smodey) ./ (sum([smodey([1 2 3]) smodey(1) smodey(2)*smodey(4)])*ncomp),'%-2.1f')])
 % disp([dispprefix 'number of data-points per (relevant) parameter = ' num2str((((smodey(1).^2)/2)*prod(smodey([2 3]))) ./ (sum([smodey([1 2 3]) smodey(1) smodey(2)*smodey(4)])*ncomp),'%-2.1f')])
 disp([dispprefix 'number of data-points per (relevant) parameter = ' num2str(prod(smode) ./ (sum([smodey([1 2 3]) smodey(1) smodey(2)*smode(3)*smode(4)])*ncomp),'%-2.1f')])
