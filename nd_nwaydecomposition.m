@@ -1057,7 +1057,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   estcomp{1} = cell(1,nondegennrand);
   estcomp{2} = cell(1,nondegennrand);
   % set nitt to a small number in case the solution in random starts has not converged yet (which will cause the below to last very long)
-  fnitt = 10;
+  fnitt = 10; % FIXME: this isn't really necessary, here because of historical reasons
   % set up general options
   optsh1 = {'nitt', fnitt, 'convcrit', convcrit, 'dispprefix',['split-half part 1 ncomp = ' num2str(incomp) ': ']};
   optsh2 = {'nitt', fnitt, 'convcrit', convcrit, 'dispprefix',['split-half part 2 ncomp = ' num2str(incomp) ': ']};
