@@ -206,7 +206,7 @@ itt        = 0;
 
 % start main while loop of algorithm (updating component matrices)
 disp([dispprefix 'starting ALS algorithm using QR-based fit estimation'])
-while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) % needs eps failsafe
+while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (abs(ssqres) / ssqdat) > eps*1e3
   
   
   % Count itt
@@ -644,6 +644,35 @@ disp([dispprefix 'acceleration performed with delta = ' num2str(delta,'%-8.2f') 
 
 
 
+function playground
+
+
+
+% test parafac
+I = 10;
+J = 15;
+K = 20;
+L = 8;
+F = 3;
+A = complex((rand(I,F)*2)-1,(rand(I,F)*2)-1);
+B = complex((rand(J,F)*2)-1,(rand(J,F)*2)-1);
+C = complex((rand(K,F)*2)-1,(rand(K,F)*2)-1);
+D = complex((rand(L,F)*2)-1,(rand(L,F)*2)-1);
+X = A*kr(D,kr(C,B)).';
+X = reshape(X,[I J K L]);
+
+data = [];
+data.X = X*1e6;
+data.label   = 'monkey';
+data.dimord  = 'chan_freq_time_tap';
+data.cfg     = [];
+cfg = [];
+cfg.randstart  = 3;
+cfg.model      = 'parafac';
+cfg.datparam   = 'X';
+cfg.ncompest   = 'corcondiag';
+cfg.complexdims = [1 1 1 1];
+nwaycomp = nd_nwaydecomposition(cfg,data);
 
 
 
