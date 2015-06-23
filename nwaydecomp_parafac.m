@@ -131,7 +131,7 @@ if nmode ~= length(compmodes)
 end
 
 % ensure working with double precision
-if ~strcmp(class(dat),'double')
+if ~isa(dat,'double')
   dat = double(dat);
 end
 
@@ -261,16 +261,18 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) % nee
       % Update the component matrix for the current mode
       % if complex, and currmode shouldn' be, take real of output that would otherwise be computed using catted real and imag parts, it's equivalent
       if compmodes(imode)==0 && compflg % computation below is identical (taking real of real data), but split up for code transparency
-        comp{imode} = real(dat{imode} * conj(Z)) * inv(real(ZctZ)).'; % real(Z'*X) = [Zre Zim]' * [Xre Xim];
+        %comp{imode} = real(dat{imode} * conj(Z)) * inv(real(ZctZ)).'; % real(Z'*X) = [Zre Zim]' * [Xre Xim];b  (.' is equal to conj in this case)
+        comp{imode} = real(dat{imode} * conj(Z)) / real(ZctZ); 
       else
-        comp{imode} = dat{imode} * conj(Z) * inv(ZctZ).'; % .' is equal to conj in this case
+        %comp{imode} = (dat{imode} * conj(Z)) * conj(inv(ZctZ)); 
+        comp{imode} = (dat{imode} * conj(Z)) / conj(ZctZ); 
       end
 
     end
   end % end of looping over modes
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
   
+
   
 
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
