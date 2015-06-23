@@ -68,8 +68,8 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.ncomp                = number of nway components to extract
 %   cfg.ncompest             = 'no', 'splithalf', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no')
 %   cfg.ncompestrandstart    = 'no' or number indicating amount of random starts for estimating component number (default = cfg.randstart)
-%   cfg.ncompestmin          = minimum number of components to try to extract (default = 1) (used in splithalf/corcondiag)
-%   cfg.ncompestmax          = maximum number of components to try to extract (default = 50) (used in splithalf/corcondiag)
+%   cfg.ncompeststart        = starting number of components to try to extract (default = 1) (used in splithalf/corcondiag)
+%   cfg.ncompestend          = maximum number of components to try to extract (default = 50) (used in splithalf/corcondiag)
 %   cfg.ncompeststep         = forward stepsize in ncomp estimation (default = 1) (backward is always 1; used in splithalf/corcondiag)
 %   cfg.ncompestshdatparam   = (for 'splithalf'): string containing field-name of partitioned data. Data should be kept in 1x2 cell-array, each partition in one cell
 %   cfg.ncompestshcritval    = (for 'splithalf'): 1Xnparam vector, critical value to use for selecting number of components using splif half (default = 0.7 for all)
@@ -158,8 +158,8 @@ cfg.degencrit           = ft_getopt(cfg, 'degencrit',              0.7);
 cfg.ncomp               = ft_getopt(cfg, 'ncomp',                  []);
 cfg.ncompest            = ft_getopt(cfg, 'ncompest',               'no');
 cfg.ncompestrandstart   = ft_getopt(cfg, 'ncompestrandstart',      cfg.randstart);
-cfg.ncompestmin         = ft_getopt(cfg, 'ncompestmin',            1);
-cfg.ncompestmax         = ft_getopt(cfg, 'ncompestmax',            50);
+cfg.ncompeststart       = ft_getopt(cfg, 'ncompeststart',          1);
+cfg.ncompestend         = ft_getopt(cfg, 'ncompestend',            50);
 cfg.ncompeststep        = ft_getopt(cfg, 'ncompeststep',           1);
 cfg.ncompestshdatparam  = ft_getopt(cfg, 'ncompestshdatparam',     []); 
 cfg.ncompestshcritval   = ft_getopt(cfg, 'ncompestshcritval',      0.7); % expanded to all paramameters later
@@ -221,7 +221,7 @@ end
 if strncmp(cfg.model,'parafac2',8) && strcmp(cfg.ncompest,'corcondiag')
   error('at the moment corcondiag cannot be used when cfg.model is parafac2/cp')
 end
-if numel(cfg.ncompestmin) ~= 1 || numel(cfg.ncompestmax) ~= 1 || numel(cfg.ncompeststep) ~= 1
+if numel(cfg.ncompeststart) ~= 1 || numel(cfg.ncompestend) ~= 1 || numel(cfg.ncompeststep) ~= 1
   error('inproper cfg.ncompestXXX')
 end
 % check splithalf and ncompestshcritval
@@ -308,7 +308,7 @@ degencrit     = cfg.degencrit;
 ncomp         = cfg.ncomp;
 nrand         = cfg.randstart;
 nrandestcomp  = cfg.ncompestrandstart;
-estnum        = [cfg.ncompestmin cfg.ncompestmax cfg.ncompeststep];
+estnum        = [cfg.ncompeststart cfg.ncompestend cfg.ncompeststep];
 estshcritval  = cfg.ncompestshcritval;
 distcomp      = cfg.distcomp;
 expvarinc     = cfg.ncompestvarinc;
@@ -860,7 +860,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
     else % keep on incrementing
       % check for previous fails at incomp+
       if isempty(ncompsucc(incomp+1:end))
-        % no previous incomp+ solutions found, increment incomp with step (and check for ncompestmax)
+        % no previous incomp+ solutions found, increment incomp with step (and check for ncompestend)
         incomp = min(incomp + estnum(3),estnum(2));
         
       else
@@ -884,7 +884,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
               found = true;
             end
           end
-          % correct for ncompestmax (because of check for ncompestmax above, the correct incomp will never have been tested)
+          % correct for ncompestend (because of check for ncompestend above, the correct incomp will never have been tested)
           incomp = min(incomp,estnum(3));
         end
       end
@@ -1420,7 +1420,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     else % keep on incrementing
       % check for previous fails at incomp+
       if isempty(ncompsucc(incomp+1:end))
-        % no previous incomp+ solutions found, increment incomp with step (and check for ncompestmax)
+        % no previous incomp+ solutions found, increment incomp with step (and check for ncompestend)
         incomp = min(incomp + estnum(3),estnum(2));
         
       else
@@ -1444,7 +1444,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
               found = true;
             end
           end
-          % correct for ncompestmax (because of check for ncompestmax above, the correct incomp will never have been tested)
+          % correct for ncompestend (because of check for ncompestend above, the correct incomp will never have been tested)
           incomp = min(incomp,estnum(3));
         end
       end
