@@ -865,8 +865,8 @@ while ~succes % the logic used here is identical as in splithalf, they should be
         
       else
         % sanity check
-        if any([ncompsucc{incomp+1:end}]) || numel(ncompsucc)>(incomp+estnum(3)-1 )
-          % incomp+i should never be successful, and there can never be more then incomp+stepsize-1 (because incomp was successful, and can never be 'incomp' again)
+        if any([ncompsucc{incomp+1:end}])
+          % incomp+i should never be successful
           error('unexpected error in ncomp estimation')
         end
         % incomp+i found, check whether next ncomp was failing
