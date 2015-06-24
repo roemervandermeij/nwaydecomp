@@ -66,7 +66,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.convcrit             = number, convergence criterion (default = 1e-8)
 %   cfg.degencrit            = number, degeneracy criterion (default = 0.7)
 %   cfg.ncomp                = number of nway components to extract
-%   cfg.ncompest             = 'no', 'splithalf', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no')
+%   cfg.ncompest             = 'no', 'splithalf', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no') (FIXME: complexicity of minexpvarinc and degeneracy should same as others)
 %   cfg.ncompestrandstart    = 'no' or number indicating amount of random starts for estimating component number (default = cfg.randstart)
 %   cfg.ncompeststart        = starting number of components to try to extract (default = 1) (used in splithalf/corcondiag)
 %   cfg.ncompestend          = maximum number of components to try to extract (default = 50) (used in splithalf/corcondiag)
@@ -627,7 +627,7 @@ for incomp = 1:estnum(2)
   
   % Get decompositions for current incomp
   % get start values for decomposition for current incomp
-  [dum, randomstat] = randomstart(model, dat, incomp, nrand, nitt, convcrit, distcomp, degencrit, ['minexpvarinc ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  [dum, randomstat] = randomstart(model, dat, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['minexpvarinc ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
   currexpvar = randomstat.expvar(1);
   
   % see if there are any non-degenerate start values and set flag if otherwise
@@ -652,7 +652,10 @@ for incomp = 1:estnum(2)
   if (currexpvar - lastexpvar) < expvarinc
     disp('minexpvarinc: increase in explained variance not sufficient')
     disp(['minexpvarinc: final number of components = ' num2str(ncomp)]);
-    break
+    if incomp == 1
+      ncomp = 1;
+    end
+      break
   end
   
   
