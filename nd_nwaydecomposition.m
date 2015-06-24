@@ -648,14 +648,13 @@ for incomp = 1:estnum(2)
   
   
   % Act on explained variance increase
-  disp(['minexpvarinc: going from ncomp = ' num2str(ncomp) ' to ' num2str(incomp) '  lead to ' num2str((currexpvar - lastexpvar),'%-2.2f') '% increase in explained variance'])
-  if (currexpvar - lastexpvar) < expvarinc
-    disp('minexpvarinc: increase in explained variance not sufficient')
-    disp(['minexpvarinc: final number of components = ' num2str(ncomp)]);
-    if incomp == 1
-      ncomp = 1;
-    end
+  if incomp ~= 1
+    disp(['minexpvarinc: going from ncomp = ' num2str(ncomp) ' to ' num2str(incomp) '  lead to ' num2str((currexpvar - lastexpvar),'%-2.2f') '% increase in explained variance'])
+    if (currexpvar - lastexpvar) < expvarinc
+      disp('minexpvarinc: increase in explained variance not sufficient')
+      disp(['minexpvarinc: final number of components = ' num2str(ncomp)]);
       break
+    end
   end
   
   
