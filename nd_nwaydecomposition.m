@@ -1375,7 +1375,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       compshsucc = [];
       randomstat1succ = [];
       randomstat2succ = [];
-      failreason = ['split-half criterion fail at minncomp = ' num2str(estnum(1))];
+      failreason = ['split-half criterion fail at ncomp = 1'];
       break
     end
     
