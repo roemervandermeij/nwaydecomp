@@ -1063,7 +1063,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   % set up general options
   optsh1 = {'nitt', fnitt, 'convcrit', convcrit, 'dispprefix',['split-half part 1 ncomp = ' num2str(incomp) ': ']};
   optsh2 = {'nitt', fnitt, 'convcrit', convcrit, 'dispprefix',['split-half part 2 ncomp = ' num2str(incomp) ': ']};
-  for inondegenrand =1:nondegennrand
+  for inondegenrand = 1:nondegennrand
     switch model
       case 'parafac'
         [estcomp{1}{inondegenrand},dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:});
@@ -1090,6 +1090,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   
   % compute splithalf coeffcients for all possible pairs of random starts from the splithalves
   partcombcompsh = cell(nondegennrand,nondegennrand);
+  compsh = NaN(incomp,length(currestcomp{1})); % NaN in case of degenflg and the below is not executed
   for irandpart1 = 1:nondegennrand
     for irandpart2 = 1:nondegennrand
       % set current estcomp
@@ -1313,20 +1314,22 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   end % irandpart1
   
   % determine failure or succes of current incomp
-  critfailflg = 0;
-  if ~any(partcombpass(:))
-    critfailflg = 1;
+  if ~degenflg
+    critfailflg = 0;
+    if ~any(partcombpass(:))
+      critfailflg = 1;
+    end
+    
+    % pick best possible compsh to pass on, determine 'best' by highest minimal value
+    maxminshcoeff = cellfun(@min,cellfun(@min,partcombcompsh,'uniformoutput',0));
+    [dum maxind] = max(maxminshcoeff(:));
+    [rowind,colind] = ind2sub([nondegennrand nondegennrand],maxind);
+    compsh = partcombcompsh{rowind,colind};
+    % save which is 'best' by setting it to 2 in partcombpass
+    partcombpass(rowind,colind) = 2;
+  else
+    critfailflg = false; % most accurate given degenflg is false
   end
-  
-  
-  % pick best possible compsh to pass on, determine 'best' by highest minimal value
-  maxminshcoeff = cellfun(@min,cellfun(@min,partcombcompsh,'uniformoutput',0));
-  [dum maxind] = max(maxminshcoeff(:));
-  [rowind,colind] = ind2sub([nondegennrand nondegennrand],maxind);
-  compsh = partcombcompsh{rowind,colind};
-  % save which is 'best' by setting it to 2 in partcombpass
-  partcombpass(rowind,colind) = 2;
-  
   
   % save incomp specifics
   allcomp{incomp}{1}        = estcomp{1};
