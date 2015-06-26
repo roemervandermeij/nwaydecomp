@@ -1090,7 +1090,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   
   % compute splithalf coeffcients for all possible pairs of random starts from the splithalves
   partcombcompsh = cell(nondegennrand,nondegennrand);
-  compsh = NaN(incomp,length(currestcomp{1})); % NaN in case of degenflg and the below is not executed
+  compsh = NaN(incomp,length(randomstat1.startvalall{1})); % NaN in case of degenflg and the below is not executed
   for irandpart1 = 1:nondegennrand
     for irandpart2 = 1:nondegennrand
       % set current estcomp
