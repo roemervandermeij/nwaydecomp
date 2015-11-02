@@ -54,10 +54,13 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 %
 %
-% For the SPACE models, the input needs to have a dimord of 'chan_freq_time_tap' .
 %
 % Use as
 %   [nwaycomp] = nd_nwaydecomposition(cfg, data)
+%
+% The input data can be any type of FieldTrip-style data structure, as long as the field containing the data
+% to be decomposed contains a numerical array. For the SPACE models, the input needs to be 
+% Fourier coefficients with a dimord of 'chan_freq_time_tap'. 
 %
 %   cfg.model                = 'parafac', 'parafac2', 'parafac2cp', 'spacetime', 'spacefsp'
 %   cfg.datparam             = string, containing field name of data to be decomposed (must be a numerical array)
@@ -88,6 +91,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %                                                        3: dim over which inner-products will be computed (i.e. the estimating dim) (only one allowed)
 %        SPACEFSP/SPACETIME
 %   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use
+%
 %
 %
 %         Output nwaycomp:
