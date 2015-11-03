@@ -18,7 +18,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 % Between-component coherency is described by matrix D (the regular transpose of D in the above paper). (also denoted as phi here)
 % 
 % Matrices A,B,C are of size JxN, KxN and LxN resp. Array Lambda is of size JxKxN.
-% Matrix D is of size NxN
+% Matrix D is of size KxNxN (if Dmode = 'kdepcomplex') or NxN (if Dmode = 'identity')
 %
 % Use as
 %   [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spacefsp(dat,ncomp,...)

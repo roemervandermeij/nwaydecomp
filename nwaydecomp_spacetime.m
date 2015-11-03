@@ -18,7 +18,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 % Between-component coherency is described by matrix D (the regular transpose of D in the above paper). (also denoted as phi here)
 % 
 % Matrices A,B,C,S are of size JxN, KxN, LxN, JXN resp.
-% Matrix D is of size NxN
+% Matrix D is of size KxNxN (if Dmode = 'kdepcomplex') or NxN (if Dmode = 'identity')
 %
 % Use as
 %   [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spacetime(dat,ncomp,F,...)
@@ -53,7 +53,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %   'optimmode'    = Optimization mode of S; 'singlecomppairals' or 'singlecomp', optimize using a 1D grid search and Newton-Raphson/Gradient descent
 %   'precision'    = number, precision used in many steps in the algorithm, but most importantly the smallest sigma difference
 %   'degencrit'    = number, critical value at which to regard correlations between components as too high
-%    'Dmode'       = 'identity', 'kdepcomplex', type of D to estimate/use
+%   'Dmode'        = 'identity', 'kdepcomplex', type of D to estimate/use
 %   'holdparam'    = 1x5 vector of 0s and 1s indicating whether certain parameter sets are not updated in each ALS-iteration
 %
 %
