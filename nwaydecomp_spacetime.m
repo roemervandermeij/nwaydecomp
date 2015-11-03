@@ -14,7 +14,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 % A: spatial amplitude map (Jx1)
 % B: frequency profile (Kx1)
 % C: epoch profile (Lx1)
-% S: spatial time-delay maps(1JxK)
+% S: spatial time-delay maps(Jx1)
 % Between-component coherency is described by matrix D (the regular transpose of D in the above paper). (also denoted as phi here)
 % 
 % Matrices A,B,C,S are of size JxN, KxN, LxN, JXN resp.
