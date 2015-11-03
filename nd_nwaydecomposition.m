@@ -157,7 +157,6 @@ ft_preamble trackconfig
 ft_preamble debug
 ft_preamble loadvar data 
 
-
 % Set defaults
 cfg.model               = ft_getopt(cfg, 'model',                  []);
 cfg.datparam            = ft_getopt(cfg, 'datparam',               []);
@@ -179,7 +178,6 @@ cfg.ncompestvarinc      = ft_getopt(cfg, 'ncompestvarinc',         []);
 cfg.Dmode               = ft_getopt(cfg, 'Dmode',                  'identity'); %  spacefsp/spacetime specific
 cfg.ncompestcorconval   = ft_getopt(cfg, 'ncompestcorconval',      0.7);
 cfg.t3core              = ft_getopt(cfg, 't3core',                 'no');
-cfg.outputfile          = ft_getopt(cfg, 'outputfile',             []);
 
 % set distributed computing random starting defaults and throw errors
 cfg.distcomp                  = ft_getopt(cfg, 'distcomp',                    []);
@@ -195,7 +193,8 @@ if strcmp(cfg.distcomp.system,'p2p') && isempty(cfg.distcomp.p2presubdel)
   error('need to specifiy cfg.distcomp.p2presubdel')
 end
 
-% missing essential cfg errors
+
+% check essential cfg options
 if isempty(cfg.model)
   error('please specify cfg.model')
 end
@@ -203,12 +202,14 @@ if isempty(cfg.datparam)
   error('you need to specify cfg.datparam')
 end
 
+
 % make a specific check for presence cfg.trials and cfg.channel
 if isfield(cfg,'trials') || isfield(cfg,'channel')
   error('cfg.trials and cfg.channel are not supported')
 end
 
-% get dimensions of data for for error checking (parse filename if data.(cfg.datparam) is not data)
+
+% Get dimensions of data for for error checking below (parse filename if data.(cfg.datparam) is not data)
 if ~isnumeric(data.(cfg.datparam))
   filevars = whos('-file', data.(cfg.datparam));
   % check file structure
@@ -224,7 +225,7 @@ else
 end
 
 
-% Check whether conflicting options are present and act appropiately and throw various errors
+% Ncomp and Ncompest related errors
 if (isempty(cfg.ncomp) && strcmp(cfg.ncompest,'no'))
   error('you either need to estimate the number of components or set cfg.ncomp')
 end
@@ -242,8 +243,9 @@ if strncmp(cfg.model,'parafac2',8) && strcmp(cfg.ncompest,'corcondiag')
   error('at the moment corcondiag cannot be used when cfg.model is parafac2/cp')
 end
 if numel(cfg.ncompeststart) ~= 1 || numel(cfg.ncompestend) ~= 1 || numel(cfg.ncompeststep) ~= 1
-  error('inproper cfg.ncompestXXX')
+  error('improper cfg.ncompestXXX')
 end
+
 % check splithalf and ncompestshcritval
 if strcmp(cfg.ncompest,'splithalf')
   switch cfg.model
@@ -278,7 +280,7 @@ if strcmp(cfg.ncompest,'splithalf')
   end
 end
 
-% check model specfic input requirements based on dimord
+% Check model specfic input requirements based on dimord
 if   (strcmp(cfg.model,'spacetime')...
     || strcmp(cfg.model,'spacefsp')...
     || strcmp(cfg.model,'nb4waycpfourier')...
@@ -288,6 +290,7 @@ if   (strcmp(cfg.model,'spacetime')...
   error('incorrect input for specified model')
 end
 
+% Model-specific errors
 % bb3wayfourier
 if strcmp(cfg.model,'bb3wayfourier')...
     && (~strcmp(data.dimord,'chan_freq_time') || ndimsdat~=3)
@@ -304,16 +307,9 @@ end
 if strncmp(cfg.model,'parafac',7) && ndimsdat ~= numel(cfg.complexdims)
   error('length of cfg.complexdims should be equal to number of dimensions in data')
 end
-if strncmp(cfg.model,'parafac',7) && (numel(cfg.complexdims) ~= numel(cfg.ncompestshcritval)) && strcmp(cfg.ncompest,'splithalf')
-  error('length of cfg.ncompestshcritval should be equal to the number of dimensions in the data')
-end
-if strcmp(cfg.model,'spacetime') || strcmp(cfg.model,'spacefsp')
-  if isempty(cfg.Dmode)
-    error('specify cfg.Dmode either as ''identity'' or ''kdepcomplex''')
-  end
-else
-  if ~isempty(cfg.Dmode)
-    error(['cfg.Dmode not supported for cfg.model = ' cfg.model])
+if strcmp(cfg.ncompest,'splithalf')
+  if strncmp(cfg.model,'parafac',7) && (numel(cfg.complexdims) ~= numel(cfg.ncompestshcritval))
+    error('length of cfg.ncompestshcritval should be equal to the number of dimensions in the data')
   end
 end
 
