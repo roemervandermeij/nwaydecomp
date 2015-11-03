@@ -61,9 +61,9 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % The input data can be any type of FieldTrip-style data structure, as long as the field containing the data
 % to be decomposed contains a numerical array. For the SPACE models, the input needs to be Fourier coefficients.
 % These Fourier coefficients can be provided in 2 ways. They can either come from (1) custom code together with dimord
-% of 'chan_freq_epoch_tap' (with the Fourier coefficients following this dimensionality), or (2) they can can come as 
-% output from ft_freqanalysis (cfg.output = 'fourier', and cfg.keeptrials = 'yes'; DPSS tapering is supported). In the 
-% case of the later, the 'rpt' (trial) dimension will be used as 'epochs' in SPACE terminology. The time dimension will be 
+% of 'chan_freq_epoch_tap' (with the Fourier coefficients following this dimensionality; nepoch can be 1), 
+% or (2) they can can come as output from ft_freqanalysis (cfg.output = 'fourier' or 'powandcsd'; DPSS tapering is supported). 
+% In the case of the later, the 'rpt' (trial) dimension will be used as 'epochs' in SPACE terminology. The time dimension will be 
 % used as 'tapers' in SPACE terminology. If multiple tapers are present per time-point, these will be handled accordingly.
 %
 %
@@ -314,10 +314,10 @@ end
 % Handle input for SPACE models
 % the below code also applies a trick to dramatically reduce memory in some case
 if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
-  if strcmp(ft_datatype(data),'freq') && any(strcmp(data.dimord,{'rpttap_chan_freq_time','rpttap_chan_freq'}))
+  if strcmp(ft_datatype(data),'freq')
     % Handle output from ft_freqanalysis
-    if ~strcmp(cfg.datparam,'fourierspctrm')
-      error('cfg.datparam should be ''fourierspctrm'' when input is output from ft_freqanalysis')
+    if ~strcmp(cfg.datparam,{'fourierspctrm','crsspctrm'})
+      error('cfg.datparam should be either ''fourierspctrm'' or ''crsspctrm'' when input is output from ft_freqanalysis')
     end
     if ~isnumeric(data.(cfg.datparam))
       error('specifying data field as filename is only possible with manually constructed chan_freq_epoch_tap')
@@ -327,11 +327,20 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
              'In order to do this using a custom ''chan_freq_epoch_tap'' see the tutorial on rhythmic components'...
              'and the code below this error message.'])
     end
+    % make sure channel cmb representation of data is full in case of crssspctrm
+    if strcmp(cfg.datparam,'crssspctrm') % treat crsspctrm as an exception to fourierspctrm in the below
+      data = ft_checkdata(data,'cmbrepresentation','full');
+    end
+    % if no trials are present, add trials as singular dimension to ensure SPACE input is 4-way
+    if strncmp(data.dimord,'rpt',3)
+      data.dimord = ['rpt_' data.dimord];
+      data.(cfg.datparam) = permute(data.(cfg.datparam),[ndimsdat+1 1:ndimsdat]);
+    end
     % set
     ntrial = size(data.cumtapcnt,1);
     nfreq  = size(data.cumtapcnt,2);
     nchan  = numel(data.label);
-    ntaper = min([nchan,max(max(data.cumtapcnt))]);
+    ntaper = nchan; 
     dat    = complex(NaN(nchan,nfreq,ntrial,ntaper),NaN(nchan,nfreq,ntrial,ntaper));
     tapcnt = data.cumtapcnt(:,1); % explicitly only use ntap of first freq due to above 
     % construct new dat
@@ -339,12 +348,16 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
       trialtapind = sum(tapcnt(1:itrial-1))+1:sum(tapcnt(1:itrial-1))+tapcnt(itrial); % ow
       for ifreq = 1:nfreq
         % first, select data and create csd
-        currfour = permute(data.(cfg.datparam)(trialtapind,:,ifreq,:),[2 1 3 4]); % will work regardless of time dim presence/absence
-        currfour = currfour(:,:); % this unfolds the dimensions other than chan, will work regardless of time dim presence/absence
-        % get rid of NaNs (should always be the same over channels)
-        currfour(:,isnan(currfour(1,:))) = [];
-        % compute the csd
-        csd = currfour*currfour';
+        if strcmp(cfg.datparam,'fourierspctrm')
+          currfour = permute(data.(cfg.datparam)(trialtapind,:,ifreq,:),[2 1 3 4]); % will work regardless of time dim presence/absence
+          currfour = currfour(:,:); % this unfolds the dimensions other than chan, will work regardless of time dim presence/absence
+          % get rid of NaNs (should always be the same over channels)
+          currfour(:,isnan(currfour(1,:))) = [];
+          % compute the csd
+          csd = currfour*currfour';
+        else
+          csd = nansum(permute(data.(cfg.datparam)(itrial,:,:,ifreq,:),[2 3 5 1 4]),3); % will work regardless of time dim presence/absence
+        end
         %%%%%%%%%
         % Reduce SPACE memory load and computation time by replacing each chan_taper matrix by the
         % Eigenvectors of its chan_chan cross-products weighted by sqrt(Eigenvalues).
@@ -370,11 +383,8 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     % trim dat (actual ntaper can be lower than ntaper, which depends on the data, hence the need for trimming)
     notnan = logical(squeeze(sum(sum(~isnan(squeeze(dat(1,:,:,:))),2),1)));
     dat = dat(:,:,:,notnan);
-    % replace old dat
-    data.(cfg.datparam) = dat;
-    clear dat
-    % update dimord for clarity
-    data.dimord = 'chan_freq_epoch_tap';
+    % clear old dat 
+    data.(cfg.datparam) = [];
   elseif strcmp(data.dimord,'chan_freq_epoch_tap')
     % Handle output from custom code
     if ~isnumeric(data.(cfg.datparam))
@@ -421,19 +431,20 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
         % trim dat (actual ntaper can be lower than ntaper, which depends on the data, hence the need for trimming)
         notnan = logical(squeeze(sum(sum(~isnan(squeeze(dat(1,:,:,:))),2),1)));
         dat = dat(:,:,:,notnan);
-        % replace old dat
-        data.(cfg.datparam) = dat;
-        clear dat
+        % clear old dat
+        data.(cfg.datparam) = [];
       end
     end
   else
-    error('Input data.dimord is not supported for SPACE-FSP or SPACE-time. Please see function help for supported dimords.')
+    error('Input data structure is not supported for SPACE-FSP or SPACE-time. Please see function help for supported input.')
   end
 end
 
 
 % Set several easy to work with variables
-dat           = data.(cfg.datparam);
+if ~exist(dat,'var')
+  dat         = data.(cfg.datparam);
+end
 dimord        = data.dimord;
 model         = cfg.model;
 nitt          = cfg.numitt;
@@ -613,7 +624,7 @@ end % idim
 
 % Construct output structure
 nwaycomp.label      = data.label;
-nwaycomp.dimord     = dimord;
+nwaycomp.dimord     = dimord; % FIXME change into comp dimord
 nwaycomp.comp       = outputcomp;
 if strcmp(model,'parafac2') || strcmp(model,'parafac2cp')
   nwaycomp.P        = P;
