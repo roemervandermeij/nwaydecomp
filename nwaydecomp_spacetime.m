@@ -24,7 +24,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %   [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spacetime(dat,ncomp,F,...)
 %
 % Input:
-%   dat   = 4-way array of 'chan_freq_time_tap' fourier coefficients to be decomposed
+%   dat   = 4-way array of 'chan_freq_epoch_tap' fourier coefficients to be decomposed
 %   ncomp = number indicating number of components
 %   F     = 1xnfreq vector indicating frequencies in Hz present in 2nd dimension
 %
@@ -2623,7 +2623,7 @@ data.datsh{1} = X;
 data.datsh{2} = X;
 data.freq    = F;
 data.label   = 'monkey';
-data.dimord  = 'chan_freq_time_tap';
+data.dimord  = 'chan_freq_epoch_tap';
 data.cfg     = [];
 cfg = [];
 cfg.numitt     = 3;
@@ -2645,7 +2645,7 @@ data = [];
 data.fourier = X;
 data.freq    = F;
 data.label   = 'monkey';
-data.dimord  = 'chan_freq_time_tap';
+data.dimord  = 'chan_freq_epoch_tap';
 data.cfg     = [];
 cfg = [];
 % cfg.numitt     = 3;

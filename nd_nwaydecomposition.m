@@ -1,6 +1,6 @@
 function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 
-% ND_NWAYDECOMPOSITION Decomposes an N-way array of (M)EEG data into components.
+% ND_NWAYDECOMPOSITION Decomposes an N-way array of electrophysiological data into components.
 % 
 % Please first read the README_FIRST.rtf, acompanying this toolbox.
 %
@@ -59,8 +59,9 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   [nwaycomp] = nd_nwaydecomposition(cfg, data)
 %
 % The input data can be any type of FieldTrip-style data structure, as long as the field containing the data
-% to be decomposed contains a numerical array. For the SPACE models, the input needs to be 
-% Fourier coefficients with a dimord of 'chan_freq_time_tap'. 
+% to be decomposed contains a numerical array. For the SPACE models, the input needs to be Fourier coefficients.
+% These can come either as output from ft_freqanalysis (cfg.output = 'fourier', and cfg.keeptrials = 'yes') or, can come
+% from custom code, as long as it has a dimord of 'chan_freq_epoch_tap'. 
 %
 %   cfg.model                = 'parafac', 'parafac2', 'parafac2cp', 'spacetime', 'spacefsp'
 %   cfg.datparam             = string, containing field name of data to be decomposed (must be a numerical array)
@@ -68,7 +69,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.numitt               = number of iterations to perform (default = 2500)
 %   cfg.convcrit             = number, convergence criterion (default = 1e-8)
 %   cfg.degencrit            = number, degeneracy criterion (default = 0.7)
-%   cfg.ncomp                = number of nway components to extract
+%   cfg.ncomp                = number of components to extract
 %   cfg.ncompest             = 'no', 'splithalf', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no') (FIXME: complexicity of minexpvarinc and degeneracy should same as others)
 %   cfg.ncompestrandstart    = 'no' or number indicating amount of random starts for estimating component number (default = cfg.randstart)
 %   cfg.ncompeststart        = starting number of components to try to extract (default = 1) (used in splithalf/corcondiag)
@@ -78,7 +79,6 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.ncompestshcritval    = (for 'splithalf'): 1Xnparam vector, critical value to use for selecting number of components using splif half (default = 0.7 for all)
 %   cfg.ncompestvarinc       = (for 'minexpvarinc'): minimal required increase in explained variance when increasing number of compononents by cfg.ncompeststep
 %   cfg.ncompestcorconval    = (for 'corcondiag'): minimum value of the core consistency diagnostic for increasing the number of components, between 0 and 1 (default is 0.7)
-%   cfg.outputfile           = filename to save output in
 %
 %      Algorithm specific options:
 %        PARAFAC/2(CP)
@@ -90,7 +90,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %                                                        2: inner dim of inner-product                     (i.e. the incomplete dim) (only one allowed)
 %                                                        3: dim over which inner-products will be computed (i.e. the estimating dim) (only one allowed)
 %        SPACEFSP/SPACETIME
-%   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use
+%   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use (default = 'identity')
 %
 %
 %
@@ -99,7 +99,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %            dimord: string, dimord of input data
 %              comp: cell-array, each component consists of 1 cell, each of these consist of 1 cell per dimension/parameter
 %            expvar: number, variance explained by the model
-%         tuckcongr: vector, tuckers congruence coefficient per component
+%         tuckcongr: vector, Tucker's congruence coefficient per component
 %           scaling: vector orcell-array, dep. on model, containing magnitude/phase scaling coefficients 
 %               cfg:
 %
@@ -111,9 +111,16 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %              freq: if present in input data
 %
 %
-%
+% To facilitate data-handling and distributed computing you can use
+%   cfg.inputfile   =  ...
+%   cfg.outputfile  =  ...
+% If you specify one of these (or both) the input data will be read from a *.mat
+% file on disk and/or the output data will be written to a *.mat file. These mat
+% files should contain only a single variable, corresponding with the
+% input/output structure.
 
 %  Undocumented options:
+% (experimental)
 % cfg.distcomp.system          = 'p2p' or 'torque', distributed computing for random starts (default = [])
 % cfg.distcomp.timereq         = scalar, maximum time requirement in seconds of a random start (default = 60*60*24*3 (3 days))
 % cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is autmatically determined)
@@ -125,7 +132,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 
 %
-% Copyright (C) 2010-2014, Roemer van der Meij, roemervandermeij AT gmail DOT com
+% Copyright (C) 2010-2015, Roemer van der Meij, roemervandermeij AT gmail DOT com
 %
 % This file is part of Nwaydecomnp, see https://github.com/roemervandermeij/nwaydecomp
 %
@@ -148,7 +155,7 @@ ft_preamble init
 ft_preamble provenance
 ft_preamble trackconfig
 ft_preamble debug
-% ft_preamble loadvar data % handled separately
+ft_preamble loadvar data 
 
 
 % Set defaults
@@ -169,11 +176,12 @@ cfg.ncompestshdatparam  = ft_getopt(cfg, 'ncompestshdatparam',     []);
 cfg.ncompestshcritval   = ft_getopt(cfg, 'ncompestshcritval',      0.7); % expanded to all paramameters later
 cfg.specialdims         = ft_getopt(cfg, 'specialdims',            []); % parafac2 specific
 cfg.ncompestvarinc      = ft_getopt(cfg, 'ncompestvarinc',         []);
-cfg.Dmode               = ft_getopt(cfg, 'Dmode',                  []); %  spacefsp/spacetime specific
+cfg.Dmode               = ft_getopt(cfg, 'Dmode',                  'identity'); %  spacefsp/spacetime specific
 cfg.ncompestcorconval   = ft_getopt(cfg, 'ncompestcorconval',      0.7);
 cfg.t3core              = ft_getopt(cfg, 't3core',                 'no');
 cfg.outputfile          = ft_getopt(cfg, 'outputfile',             []);
-% set distributed computing defaults
+
+% set distributed computing random starting defaults and throw errors
 cfg.distcomp                  = ft_getopt(cfg, 'distcomp',                    []);
 cfg.distcomp.system           = ft_getopt(cfg.distcomp, 'system',             []);
 cfg.distcomp.memreq           = ft_getopt(cfg.distcomp, 'memreq',             []);
@@ -181,11 +189,13 @@ cfg.distcomp.timreq           = ft_getopt(cfg.distcomp, 'timreq',             60
 cfg.distcomp.p2presubdel      = ft_getopt(cfg.distcomp, 'p2presubdel',        60*60*24*3);
 cfg.distcomp.inputpathprefix  = ft_getopt(cfg.distcomp, 'inputpathprefix',    []);
 if ~isempty(cfg.distcomp.system) && ~strcmp(getenv('USER'),'roevdmei')
-  error('distributed computing is experimental')
+  error('distributed computing implementation of random starting is highly experimental, disable error at own risk')
 end
 if strcmp(cfg.distcomp.system,'p2p') && isempty(cfg.distcomp.p2presubdel)
   error('need to specifiy cfg.distcomp.p2presubdel')
 end
+
+% missing essential cfg errors
 if isempty(cfg.model)
   error('please specify cfg.model')
 end
@@ -193,7 +203,12 @@ if isempty(cfg.datparam)
   error('you need to specify cfg.datparam')
 end
 
-% get dimensions of data for for error checking, and parse filename if data.(cfg.datparam) is not data
+% make a specific check for presence cfg.trials and cfg.channel
+if isfield(cfg,'trials') || isfield(cfg,'channel')
+  error('cfg.trials and cfg.channel are not supported')
+end
+
+% get dimensions of data for for error checking (parse filename if data.(cfg.datparam) is not data)
 if ~isnumeric(data.(cfg.datparam))
   filevars = whos('-file', data.(cfg.datparam));
   % check file structure
@@ -207,6 +222,7 @@ if ~isnumeric(data.(cfg.datparam))
 else
   ndimsdat = ndims(data.(cfg.datparam));
 end
+
 
 % Check whether conflicting options are present and act appropiately and throw various errors
 if (isempty(cfg.ncomp) && strcmp(cfg.ncompest,'no'))
@@ -268,7 +284,7 @@ if   (strcmp(cfg.model,'spacetime')...
     || strcmp(cfg.model,'nb4waycpfourier')...
     || strcmp(cfg.model,'bbfssm4waycpfourier')...
     || strcmp(cfg.model,'spacefsp'))...
-    && (~strcmp(data.dimord,'chan_freq_time_tap') || ndimsdat~=4)
+    && (~strcmp(data.dimord,'chan_freq_epoch_tap') || ndimsdat~=4)
   error('incorrect input for specified model')
 end
 
