@@ -285,10 +285,7 @@ if strcmp(cfg.ncompest,'splithalf')
 end
 
 % Check model specfic input requirements based on dimord
-if   (strcmp(cfg.model,'spacetime')...
-    || strcmp(cfg.model,'spacefsp')...
-    || strcmp(cfg.model,'spacefsp'))...
-    && (~strcmp(data.dimord,'chan_freq_epoch_tap') || ndimsdat~=4)
+if   any(strcmp(cfg.model,{'spacetime','spacefsp','spacefsp'})) && (~strcmp(data.dimord,'chan_freq_epoch_tap') || ndimsdat~=4)
   error('incorrect input for specified model')
 end
 
@@ -316,7 +313,7 @@ end
 if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
   if strcmp(ft_datatype(data),'freq')
     % Handle output from ft_freqanalysis
-    if ~strcmp(cfg.datparam,{'fourierspctrm','crsspctrm'})
+    if ~any(strcmp(cfg.datparam,{'fourierspctrm','crsspctrm'}))
       error('cfg.datparam should be either ''fourierspctrm'' or ''crsspctrm'' when input is output from ft_freqanalysis')
     end
     if ~isnumeric(data.(cfg.datparam))
@@ -608,25 +605,61 @@ end
 
 
 
-
-
-% Transform nway components to regular output structure
+% Transform comp to compoment-specific cell-arrays
 outputcomp = cell(1,ncomp);
-for icomp = 1:ncomp
-  for idim = 1:numel(comp)
-    if ndims(comp{idim})==3 || (ndims(comp{idim})==2 && size(comp{idim},2)~=ncomp)
-      outputcomp{icomp}{idim} = comp{idim}(:,:,icomp);
-    elseif ndims(comp{idim})==2
-      outputcomp{icomp}{idim} = comp{idim}(:,icomp);
+switch model
+  case {'parafac','parafac2','parafac2cp'}
+    % comp always consist of a loading matrix per dimension
+    for icomp = 1:ncomp
+      for idim = 1:numel(comp)
+        outputcomp{icomp}{idim} = comp{idim}(:,icomp);
+      end
     end
-  end % icomp
-end % idim
+  case 'spacetime'
+    for icomp = 1:ncomp
+      % A,B,C,S
+      for iparam = 1:4
+        outputcomp{icomp}{iparam} = comp{iparam}(:,icomp);
+      end
+      % D
+      if strcmp(cfg.Dmode,'kdepcomplex')
+        outputcomp{icomp}{5} = comp{5}(:,:,icomp);
+      else % identity
+        outputcomp{icomp}{5} = comp{5}(:,icomp);
+      end
+    end
+  case 'spacefsp'
+    for icomp = 1:ncomp
+      % A,B,C
+      for iparam = 1:3
+        outputcomp{icomp}{iparam} = comp{iparam}(:,icomp);
+      end
+      % L
+      outputcomp{icomp}{4} = comp{4}(:,:,icomp);
+      % D
+      if strcmp(cfg.Dmode,'kdepcomplex')
+        outputcomp{icomp}{5} = comp{5}(:,:,icomp);
+      else % identity
+        outputcomp{icomp}{5} = comp{5}(:,icomp);
+      end
+    end
+end
+
+% set dimord
+switch model
+  case {'parafac','parafac2','parafac2cp'}
+    dimord = data.dimord;
+  case 'spacetime'
+    dimord = 'A_B_C_S_D';
+  case 'spacefsp'
+    dimord = 'A_B_C_L_D';
+end
 
 % Construct output structure
 nwaycomp.label      = data.label;
-nwaycomp.dimord     = dimord; % FIXME change into comp dimord
+nwaycomp.dimord     = dimord; 
 nwaycomp.comp       = outputcomp;
-if strcmp(model,'parafac2') || strcmp(model,'parafac2cp')
+if any(strcmp(model,{'parafac2','parafac2cp'}))
   nwaycomp.P        = P;
 end
 nwaycomp.expvar     = expvar;
@@ -644,29 +677,26 @@ end
 if exist('t3core','var')
   nwaycomp.t3core = t3core;
 end
-% try and add grad and elec
-try
-  nwaycomp.grad = data.grad;
-end
-try
-  nwaycomp.elec = data.elec;
-end
-% try and get freq
-try
-  nwaycomp.freq     = data.freq;
-end
 
-% backwards compatability
-try
-  nwaycomp.ampfreq  = data.ampfreq;
-  nwaycomp.phasfreq = data.phasfreq;
-end
-try
-  nwaycomp.freq_old = data.freq_old;
-end
-try
-  nwaycomp.label_old  = data.label_old;
-end
+
+% add certain fields if present in input (some might be mutually exclusive, or undesired, adding all currenlty for completeness)
+% general
+fieldnames = {'grad','elec','trialinfo'};
+nwaycomp = copyfields(data, nwaycomp, fieldnames);
+% ft_freqanalysis/connectivityanalysis/timelockanalysis
+fieldnames = {'freq','time','cumtapcnt','cumsumcnt','dof','labelcmb'};
+nwaycomp = copyfields(data, nwaycomp, fieldnames);
+% ft_componentanalysis
+fieldnames = {'topo','topolabel','unmixing'};
+nwaycomp = copyfields(data, nwaycomp, fieldnames);
+% ft_sourceanalysis
+fieldnames = {'pos','inside','outside','leadfield','dim','tri','transform'};
+nwaycomp = copyfields(data, nwaycomp, fieldnames);
+
+
+% includes certain fields for backwards compatability
+fieldnames = {'ampfreq','phasfreq','freq_old','label_old'};
+nwaycomp = copyfields(data, nwaycomp, fieldnames);
 
 
 % do the general cleanup and bookkeeping at the end of the function
