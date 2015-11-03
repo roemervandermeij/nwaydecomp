@@ -64,7 +64,6 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %
 %
 %  TO DO: precision should really be split up in tolerance and (lambda) precision, keeping in mind their dependence
-%  TO DO: should also be able to compute square root of EIGVEC*EiG*EIGVEC'
 %  TO DO: merge some of the subfunctions of SPACE models into externals
 %
 %
@@ -165,9 +164,9 @@ if ~compflg || (nmode ~= 4)
 end
 
 % prepare datforQ, and use cholesky decomp if applicable
-datforQ     = cell(smode([2 3]));
-choleskyflg = false;
-ssqdat      = 0;
+datforQ    = cell(smode([2 3]));
+eigflg     = false;
+ssqdat     = 0;
 zeropadflg = false;
 for ik = 1:smode(2)
   for il = 1:smode(3)
@@ -175,19 +174,25 @@ for ik = 1:smode(2)
     currdatQ = permute(dat(:,ik,il,:),[1 4 2 3]);
     currdatQ(:,isnan(currdatQ(1,:))) = [];
     
-	% FIXME: should also be able to compute square root of EIGVEC*EiG*EIGVEC'
-    % check whether speedup via cholesky can be done
+    % check whether speedup via eig can be done
     if size(currdatQ,1) < (size(currdatQ,2))
-      % compute cholesky decomposition if rank of cross-products is not lower than nchan
-      currdatQ = double(currdatQ); % ensure double precision
-      if ~(rank(currdatQ*currdatQ')<smode(1))
-        error('chan*chan cross-product matrix not of full rank')
-      end
-      cholcurrdatQ = chol(currdatQ*currdatQ','lower');
-      cholcurrdatQ = single(cholcurrdatQ); % ensure single precision
-      choleskyflg = true;
-      % save in datforq
-      currdatQ = cholcurrdatQ;
+      % Reduce memory load and computation time by replacing each chan_tap matrix by the
+      % Eigenvectors of its chan_chan cross-products weighted by sqrt(Eigenvalues).
+      % This is possible because (1) SPACE only uses the cross-products of the chan_taper matrices
+      % (i.e. the frequency- and trial-specific CSD) and (2) the Eigendecomposition of a symmetric
+      % matrix A is A = VLV'.
+      % As such, VL^.5 has the same cross-products as the original chan_tap matrix.
+      currdatQ  = double(currdatQ); % ensure double precision
+      csd       = currdatQ*currdatQ';
+      [V L]     = eig(csd);
+      L         = diag(L);
+      tol       = max(size(csd))*eps(max(L)); % compute tol using matlabs default
+      zeroL     = L<tol;
+      eigweigth = V(:,~zeroL)*diag(sqrt(L(~zeroL)));
+      eigweigth = single(eigweigth); % ensure single precision
+      eigflg    = true;
+      % save as currdatQ
+      currdatQ = eigweigth;
     end
     
     % zero pad taper dimension
@@ -202,8 +207,8 @@ for ik = 1:smode(2)
     ssqdat = ssqdat + sum(abs(double(currdatQ(:))).^2);
   end
 end
-if choleskyflg
-  disp([dispprefix 'number of tapers higher than channels for some frequencies: using cholesky decomposition to accelerate'])
+if eigflg
+  disp([dispprefix 'number of tapers higher than channels for some frequencies: using eigendecomposition to accelerate'])
 end
 if zeropadflg
   disp([dispprefix 'number of tapers is lower than number of components for one or more frequencies/trials, adding zero columns as filling tapers'])
