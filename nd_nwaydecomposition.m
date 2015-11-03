@@ -442,7 +442,6 @@ end
 if ~exist(dat,'var')
   dat         = data.(cfg.datparam);
 end
-dimord        = data.dimord;
 model         = cfg.model;
 nitt          = cfg.numitt;
 convcrit      = cfg.convcrit;
