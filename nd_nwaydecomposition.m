@@ -126,8 +126,6 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is autmatically determined)
 % cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))
 % cfg.distcomp.inputpathprefix = saves input data with a random name in specified path
-%  Undocumented models:
-% 'nb4waycpfourier','bbfssm4waycpfourier'
 %
 %
 
@@ -249,10 +247,8 @@ end
 % check splithalf and ncompestshcritval
 if strcmp(cfg.ncompest,'splithalf')
   switch cfg.model
-    case {'parafac','parafac2','parafac2cp','spacetime','spacefsp','nb4waycpfourier'}
+    case {'parafac','parafac2','parafac2cp','spacetime','spacefsp'}
       % implemented
-    case 'bbfssm4waycpfourier'
-      error('splithalf not yet implemented for bbfssm4waycpfourier')
     otherwise
       error('model not supported')
   end
@@ -263,18 +259,11 @@ if strcmp(cfg.ncompest,'splithalf')
       cfg.ncompestshcritval = repmat(cfg.ncompestshcritval,[1 ndimsdat]);
     elseif strcmp(cfg.model,'spacetime') || strcmp(cfg.model,'spacefsp')
       cfg.ncompestshcritval = repmat(cfg.ncompestshcritval,[1 5]);
-    elseif strcmp(cfg.model,'nb4waycpfourier') || strcmp(cfg.model,'bbfssm4waycpfourier')
-      cfg.ncompestshcritval = repmat(cfg.ncompestshcritval,[1 4]);
-    elseif strcmp(cfg.model,'bb3wayfourier')
-      cfg.ncompestshcritval = repmat(cfg.ncompestshcritval,[1 3]);
     end
   else
-    if (strncmp(cfg.model,'parafac',7) && (numel(cfg.ncompestshcritval)~=ndimsdat))...
+    if (strncmp(cfg.model,'parafac',7) && (numel(cfg.ncompestshcritval)~=ndimsdat))... % FIXME: likley should contain check for PARAFAC2
         || (strcmp(cfg.model,'spacetime') && (numel(cfg.ncompestshcritval)~=5))...
-        || (strcmp(cfg.model,'spacefsp') && (numel(cfg.ncompestshcritval)~=5))...
-        || (strcmp(cfg.model,'bb3wayfourier') && (numel(cfg.ncompestshcritval)~=3))...
-        || (strcmp(cfg.model,'nb4waycpfourier') && (numel(cfg.ncompestshcritval)~=4))...
-        || (strcmp(cfg.model,'bbfssm4waycpfourier') && (numel(cfg.ncompestshcritval)~=4))
+        || (strcmp(cfg.model,'spacefsp') && (numel(cfg.ncompestshcritval)~=5))
       error('improper size of cfg.ncompestshcritval')
     end
   end
@@ -283,19 +272,12 @@ end
 % Check model specfic input requirements based on dimord
 if   (strcmp(cfg.model,'spacetime')...
     || strcmp(cfg.model,'spacefsp')...
-    || strcmp(cfg.model,'nb4waycpfourier')...
-    || strcmp(cfg.model,'bbfssm4waycpfourier')...
     || strcmp(cfg.model,'spacefsp'))...
     && (~strcmp(data.dimord,'chan_freq_epoch_tap') || ndimsdat~=4)
   error('incorrect input for specified model')
 end
 
 % Model-specific errors
-% bb3wayfourier
-if strcmp(cfg.model,'bb3wayfourier')...
-    && (~strcmp(data.dimord,'chan_freq_time') || ndimsdat~=3)
-  error('incorrect input for bb3wayfourier')
-end
 % parafac2/parafac2cp
 if strncmp(cfg.model,'parafac2',8) && ndimsdat ~= numel(cfg.specialdims)
   error('length of cfg.specialdims should be equal to number of dimensions in data')
@@ -342,12 +324,10 @@ switch cfg.model
     else
       modelopt = {'compmodes',cfg.complexdims,'ssqdatnoncp',data.ssqdatnoncp,'specmodes',cfg.specialdims};
     end
-  case 'spacetime' %,'bb3wayfourier'} FIXME: optim algorithms of 3way model should be updated to the version in the 4way's
+  case 'spacetime'
     modelopt = {'freq',data.freq,'Dmode',cfg.Dmode};
   case 'spacefsp'
     modelopt = {'Dmode',cfg.Dmode};
-  case {'nb4waycpfourier','bbfssm4waycpfourier'}
-    modelopt = cell(0);
   otherwise
     error('model not supported')
 end
@@ -474,23 +454,6 @@ switch cfg.model
         [comp, dum, dum, expvar, scaling, tuckcongr, t3core] = feval(['nwaydecomp_' model], dat, ncomp, 'Dmode', cfg.Dmode, opt{:});
       else
         [comp, dum, dum, expvar, scaling, tuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, 'Dmode', cfg.Dmode, opt{:});
-      end
-    end
-  case {'nb4waycpfourier','bbfssm4waycpfourier'}
-    if isnumeric(nrand)
-      if ~exist('startval','var') && ~exist('randomstat','var')
-        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, nitt, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
-      end
-      if strcmp(cfg.t3core,'yes')
-        [comp, dum, dum, expvar, scaling, tuckcongr, t3core] = feval(['nwaydecomp_' model], dat, ncomp, 'startval', startval, opt{:});
-      else
-        [comp, dum, dum, expvar, scaling, tuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, 'startval', startval, opt{:});
-      end
-    else
-      if strcmp(cfg.t3core,'yes')
-        [comp, dum, dum, expvar, scaling, tuckcongr, t3core] = feval(['nwaydecomp_' model], dat, ncomp, opt{:});
-      else
-        [comp, dum, dum, expvar, scaling, tuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, opt{:});
       end
     end
 end
@@ -702,7 +665,6 @@ switch model
     Dmode = keyval('Dmode', varargin);
   case 'spacefsp'
     Dmode = keyval('Dmode', varargin);
-  case {'nb4waycpfourier','bbfssm4waycpfourier'}
   otherwise
     error('model not supported')
 end
@@ -755,8 +717,6 @@ while ~succes % the logic used here is identical as in splithalf, they should be
       [estcomp,dum,dum,dum,dum,dum,t3core] = feval(['nwaydecomp_' model], dat, incomp, freq, 'Dmode', Dmode, 'startval', startval, opt{:});
     case 'spacefsp'
       [estcomp,dum,dum,dum,dum,dum,t3core] = feval(['nwaydecomp_' model], dat, incomp, 'Dmode', Dmode, 'startval', startval, opt{:});
-    case {'nb4waycpfourier','bbfssm4waycpfourier'}
-      [estcomp,dum,dum,dum,dum,dum,t3core] = feval(['nwaydecomp_' model], dat, incomp, 'startval', startval, opt{:});
     otherwise
       error('model not yet supported in corecondiag component number estimation')
   end
@@ -995,7 +955,7 @@ corcondiagstat.ncompsucc       = ncompsucc;
   
   
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%% Subfunction for cfg.ncompest = 'splithalf'           %%%%%%
+%%%%%% Subfunction for cfg.ncompest = 'splithalf'             %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [ncomp,splithalfstat] = splithalf(model, datpart1, datpart2, nrand, estnum, estshcritval, nitt, convcrit, degencrit, distcomp, varargin)
 
@@ -1016,7 +976,6 @@ switch model
     Dmode = keyval('Dmode', varargin);
   case 'spacefsp'
     Dmode = keyval('Dmode', varargin);
-  case {'nb4waycpfourier','bbfssm4waycpfourier'}
   otherwise
     error('model not supported')
 end
@@ -1096,9 +1055,6 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       case 'spacefsp'
         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'Dmode', Dmode, 'startval', startval1{inondegenrand}, optsh1{:});
         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, 'Dmode', Dmode, 'startval', startval2{inondegenrand}, optsh2{:});
-      case {'nb4waycpfourier','bbfssm4waycpfourier'}
-        [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'startval', startval1{inondegenrand}, optsh1{:});
-        [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, 'startval', startval2{inondegenrand}, optsh2{:});
       otherwise
         error('model not yet supported in split-half component number estimation')
     end
@@ -1128,34 +1084,6 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
                 paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
                 % put in compsh
                 compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-              case 'nb4waycpfourier'
-                switch iparam
-                  case {1,2,3}
-                    paramc1 = currestcomp{1}{iparam}(:,icompsh1);
-                    paramc2 = currestcomp{2}{iparam}(:,icompsh2);
-                    % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
-                    compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-                  case 4
-                    % 'kdepcomplex', Dmode not supported yet (and param 4 is D for nb4waycpfourier)
-                    % scale with B
-                    B1 = currestcomp{1}{2}(:,icompsh1);
-                    B2 = currestcomp{2}{2}(:,icompsh2);
-                    D1 = currestcomp{1}{4}(:,:,icompsh1);
-                    D2 = currestcomp{2}{4}(:,:,icompsh2);
-                    D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
-                    D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
-                    % vectorize
-                    paramc1 = D1(:);
-                    paramc2 = D2(:);
-                    % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
-                    compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-                end
               case 'spacetime'
                 switch iparam
                   case {1,2,3}
@@ -1583,7 +1511,6 @@ switch model
     Dmode = keyval('Dmode', varargin);
   case 'spacefsp'
     Dmode = keyval('Dmode', varargin);
-  case {'nb4waycpfourier','bbfssm4waycpfourier'}
   otherwise
     error('model not supported')
 end
@@ -1680,8 +1607,6 @@ if ~isempty(distcomp.system)
       cellDmodekey  = repmat({'Dmode'},[nrand 1]);
       cellDmodeval  = repmat({Dmode},[nrand 1]);
       [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellDmodekey,cellDmodeval,opt{:},distcompopt{:},'memreq', memreq);
-    case {'nb4waycpfourier','bbfssm4waycpfourier'}
-      [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,opt{:},distcompopt{:},'memreq', memreq);
     otherwise
       error('model not yet supported in automatic random starting')
   end
@@ -1719,8 +1644,6 @@ else
         [rndcomp,dum,rndssqres,rndexpvar,rndscaling,rndtuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, freq, 'Dmode', Dmode, opt{:});
       case 'spacefsp'
         [rndcomp,dum,rndssqres,rndexpvar,rndscaling,rndtuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, 'Dmode', Dmode, opt{:});
-      case {'nb4waycpfourier','bbfssm4waycpfourier'}
-        [rndcomp,dum,rndssqres,rndexpvar,rndscaling,rndtuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, opt{:});
       otherwise
         error('model not yet supported in automatic random starting')
     end
@@ -1803,7 +1726,7 @@ if ~isempty(initindex)
   congrglobmin = NaN(ncomp,nparam);
   for icomp = 1:ncomp
     for iparam = 1:nparam
-      try % FIX the above, until then, it is more important the code runs through
+      try % FIXME fix the above, until then, it is more important the code runs through
         %randmat = zeros(length(randindex),size(randcomp{1}{iparam},1));
         randmat = [];
         for irand = 1:length(randindex)
@@ -1875,7 +1798,7 @@ for irand = 1:nrand
         end
       end
       
-    case {'spacetime','bb3wayfourier','nb4waycpfourier','spacefsp','bbfssm4waycpfourier'}
+    case {'spacetime','spacefsp'}
       % magnitude scaling
       for icomp = 1:ncomp
         % set mode1
