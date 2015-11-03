@@ -358,7 +358,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
         %%%%%%%%%
         % Reduce SPACE memory load and computation time by replacing each chan_taper matrix by the
         % Eigenvectors of its chan_chan cross-products weighted by sqrt(Eigenvalues).
-        % This possible because (1) SPACE only uses the cross-products of the chan_taper matrices
+        % This is possible because (1) SPACE only uses the cross-products of the chan_taper matrices
         % (i.e. the frequency- and trial-specific CSD) and (2) the Eigendecomposition of a symmetric
         % matrix A is A = VLV'.
         % As such, VL^.5 has the same cross-products as the original chan_taper matrix.
@@ -406,7 +406,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
             %%%%%%%%%
             % Reduce SPACE memory load and computation time by replacing each chan_taper matrix by the
             % Eigenvectors of its chan_chan cross-products weighted by sqrt(Eigenvalues).
-            % This possible because (1) SPACE only uses the cross-products of the chan_taper matrices
+            % This is possible because (1) SPACE only uses the cross-products of the chan_taper matrices
             % (i.e. the frequency- and trial-specific CSD) and (2) the Eigendecomposition of a symmetric
             % matrix A is A = VLV'.
             % As such, VL^.5 has the same cross-products as the original chan_taper matrix.
