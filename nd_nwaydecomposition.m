@@ -64,7 +64,9 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % of 'chan_freq_epoch_tap' (with the Fourier coefficients following this dimensionality; nepoch can be 1), 
 % or (2) they can can come as output from ft_freqanalysis (cfg.output = 'fourier' or 'powandcsd'; DPSS tapering is supported). 
 % In the case of the later, the 'rpt' (trial) dimension will be used as 'epochs' in SPACE terminology. The time dimension will be 
-% used as 'tapers' in SPACE terminology. If multiple tapers are present per time-point, these will be handled accordingly.
+% used as 'tapers' in SPACE terminology. If multiple tapers are present per time-point, these will be handled accordingly. 
+% Additionally, if you used method = 'mtmconvol', and frequency-dependent window-lengths, it is highly recommended to supply 
+% cfg.fsample, containing the sampling rate of the data in Hz.
 %
 %
 %   cfg.model                = 'parafac', 'parafac2', 'parafac2cp', 'spacetime', 'spacefsp'
@@ -319,6 +321,16 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     if ~isnumeric(data.(cfg.datparam))
       error('specifying data field as filename is only possible with manually constructed chan_freq_epoch_tap')
     end
+    % throw error based on specestmethod, this has to do with current nsample normalization of Fourier coefficients (not important for mtmfft)
+    specestmethod = data.cfg.method;
+    if ~any(strcmp(specestmethod,{'mtmfft','mtmconvol'}))
+      error(['distortion-free scaling of frequency-dependent time-windows lengths over frequency using ft_freqanalysis with method = ' specestmethod ' is not guaranteed'])
+    end
+    if strcmp(specestmethod,'mtmconvol') && ~isfield(cfg.fsample)
+      warning(['Your input resulted from ft_freqanalysis with method = mtmconvol. If you''re also using frequency-dependent window-lengths ' ... 
+               'it is highly recommended to supply cfg.fsample, containing the sampling rate of the data in Hz, to correct for ' ...
+               'frequency-dependent distortions of power'])
+    end
     % failsafe error for if this ever becomes supported in ft_freqananalysis (which it shouldn't)
     if strcmp(cfg.datparam,'fourierspctrm') && (strcmp(data.cfg.keeptrials,'no') || strcmp(data.cfg.keeptrials,'no'))
       error('fourierspctrm must have been computed using keeptrials and keeptapers = yes')
@@ -359,6 +371,20 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
           currfour = currfour(:,:); % this unfolds the dimensions other than chan, will work regardless of time dim presence/absence
           % get rid of NaNs (should always be the same over channels)
           currfour(:,isnan(currfour(1,:))) = [];
+          %%%%%%
+          % UNDO double scaling in ft_specest_mtmconvol
+          % There is currently a double scaling applied in ft_specest_mtmconvol. This will likely not hurt other analyses,
+          % but causes a distortion over frequencies that SPACE is sensitive for.
+          % This scaling is only dependent on frequency for fourierspctrm
+          % This scaling requires cfg.fsample to be given (... :( )
+          if strcmp(data.cfg.method,'mtmconvol') && isfield(cfg,'fsample')
+            % reconstruct tinwinsample
+            t_ftimwin     = ft_findcfg(out.cfg,'t_ftimwin');
+            timwinnsample = round(t_ftimwin(ifreq) .* cfg.fsample);
+            % undo additional the scaling by sqrt(2./ timwinnsample)
+            currfour      = currfour ./ sqrt(2 ./ timwinnsample); 
+          end
+          %%%%%%
           % obtain count of time-points and tapers
           currntimetap = size(currfour,2);
           % compute the csd
@@ -370,11 +396,26 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
           currcsd = permute(data.(cfg.datparam)(itrial,:,:,ifreq,:),[2 3 5 1 4]); % will work regardless of time dim presence/absence
           % get rid of NaNs (should always be the same over channel-pairs)
           currcsd(:,:,isnan(squeeze(currcsd(1,1,:)))) = [];
+          %%%%%%
+          % UNDO double scaling in ft_specest_mtmconvol
+          % There is currently a double scaling applied in ft_specest_mtmconvol. This will likely not hurt other analyses,
+          % but causes a distortion over frequencies that SPACE is sensitive for.
+          % This scaling is only dependent on frequency for fourierspctrm
+          % This scaling requires cfg.fsample to be given (... :( )
+          if strcmp(data.cfg.method,'mtmconvol') && isfield(cfg,'fsample')
+            % reconstruct tinwinsample
+            t_ftimwin     = ft_findcfg(out.cfg,'t_ftimwin');
+            timwinnsample = round(t_ftimwin(ifreq) .* cfg.fsample);
+            % undo additional the scaling by (sqrt(2./ timwinnsample)).^2 = (2./ timwinnsample) 
+            % the scaling is performed on the level of individual taper-specific Fourier coefficients, and currcsd contains the summed cross-products of these
+            currcsd       = currcsd ./ (2 ./ timwinnsample); 
+          end
+          %%%%%%
           % obtain count of time-points (tapers are never kept if crsspctrm, enforced above)
           currntime = size(currcsd,3);
           % obtain csd
           csd = sum(currcsd,3); 
-          % correct for number of time-points (if crsspctrm, time-points (if mtmconvol) are not aggegrated, but tapers are, enforced above)
+          % correct for number of time-points (if crsspctrm, time-points (if mtmconvol) are not aggegrated, but tapers are averaged, enforced above)
           % this step is CRUCIAL if we want to interpret the loadings of the trial profile
           csd = csd ./  currntime; % this is a rather circumstantial way to do this, but is such to keep it similar to above
         end
