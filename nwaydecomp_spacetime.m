@@ -7,15 +7,16 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %    van der Meij R, Jacobs J, Maris E (2015). Uncovering phase-coupled oscillatory networks in
 %        electrophysiological data. Human Brain Mapping
 %
-% For the model specification see the above publication.
+% For details on the model specification and the algorithm implemented below, see the above publication.
+% The following is a very succint description.
 %
-% This function decomposes a chan_freq_epoch_tap 4-way array into N components.
+% This function decomposes a channel-by-frequency-by-epoch-by-taper (JxKxLxM) 4-way array into N components.
 % Each component consists of a:
 % A: spatial amplitude map (Jx1)
 % B: frequency profile (Kx1)
 % C: epoch profile (Lx1)
-% S: spatial time-delay maps(Jx1)
-% Between-component coherency is described by matrix D (the regular transpose of D in the above paper). (also denoted as phi here)
+% Sigma: spatial time-delay maps(Jx1)
+% D: Between-component coherency (the regular transpose of D in the above paper). (also denoted as phi here)
 %
 % Matrices A,B,C,S are of size JxN, KxN, LxN, JXN resp.
 % Matrix D is of size KxNxN (if Dmode = 'kdepcomplex') or NxN (if Dmode = 'identity')
@@ -24,42 +25,38 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %   [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spacetime(dat,ncomp,F,...)
 %
 % Input:
-%   dat   = 4-way array of 'chan_freq_epoch_tap' fourier coefficients to be decomposed
+%   dat   = 4-way array channel-by-frequency-by-epoch-by-taper of Fourier coefficients to be decomposed
 %   ncomp = number indicating number of components
 %   F     = 1xnfreq vector indicating frequencies in Hz present in 2nd dimension
 %
 % Output:
-%         comp = cell array containing component loadings (A, B, C, S, D)
+%         comp = 1x5 cell-array containing the estimated component parameters (A, B, C, Sigma, D)
 %     startval = initialization values of the algorithm
 %       ssqres = sums of squares of the residuals
-%       expvar = percentage explained variance of the model
-%      scaling = scaling coefficients belonging to magnitude of the third mode
-%                all magnutide component loading vectors have norm = 1. Sigma vectors have a magnitude (A) weighted
-%                mean of half the circularity point. The phase of D is shifted accordingly.
-%    tuckcongr = tuckers congruence coefficents between components, high values mean some components are highly correlated, which is a sign of
+%       expvar = percentage explained variance of the input data by the model
+%      scaling = componont-specific scaling coefficients 
+%                A,B,C have a component-specific vector of norm = 1. Sigma has a component-specific mean of half 
+%                the 'circularity point' (see paper above), weigthed by A. (The phase of D is shifted accordingly if complex-valued).
+%    tuckcongr = tuckers congruence coefficents between components, high values mean high correlation between components, which is a sign of
 %                a degenerate model
-%       t3core = a Tucker3 model core-array (vectorized). Each element indicates a between component and between mode interaction-term. If the
-%                above model holds well, only quadrilinear variation is explained. This corresponds to a 4-dimensional core-array of zeros with
-%                only 1 on its super-diagonal. When the off-diagonal terms become non-zero, the model no longer strictly explains quadrilinear
-%                variation, and can be assumed to be modelling noise/signal falling outside of the mode. The t3core is used to calculate the
-%                core consistency diagnostic
+%       t3core = a Tucker3 model core-array (vectorized). If the above model holds well, the t3core corresponds to a 4-dimensional core-array 
+%                of zeros with only 1 on its super-diagonal. When the off-diagonal terms become non-zero, it can be assumed components are 
+%                fitting structure that doesn't follow the model, i.e. noise. The t3core is used to calculate the core consistency diagnostic.
 %
 %
 % Additional options should be specified in key-value pairs and can be
 %   'nitt'         = maximum number of iterations (default = 2500)
 %   'convcrit'     = convergence criterion (default = 1e-6)
-%   'startval'     = previously computed start-values, 'random', or 'narrowband' (default is 'random')
+%   'startval'     = previously computed start-values
 %   'dispprefix'   = prefix added to all disp-calls, handy when function is used in many loops after each other
-%   'optimmode'    = Optimization mode of S; 'singlecomppairals' or 'singlecomp', optimize using a 1D grid search and Newton-Raphson/Gradient descent
+%   'optimmode'    = Optimization mode of Sigma; 'singlecomppairals' or 'singlecomp' (default is set depending on Dmode), 
+%                    optimize using a 1D grid search and Newton-Raphson/Gradient descent
 %   'precision'    = number, precision used in many steps in the algorithm, but most importantly the smallest sigma difference
 %   'degencrit'    = number, critical value at which to regard correlations between components as too high
 %   'Dmode'        = 'identity', 'kdepcomplex', type of D to estimate/use
 %   'holdparam'    = 1x5 vector of 0s and 1s indicating whether certain parameter sets are not updated in each ALS-iteration
 %
 %
-%    Note: one can overcome memory issues by replacing the chan*taper matrices in the input replaced by the Cholesky
-%          decomposition of the chan*chan cross-products (or any other product that retains sums of squares).
-%          As the algorithm only uses these cross-products, the result is equivalent.
 %
 %
 %
@@ -72,7 +69,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %
 
 %
-% Copyright (C) 2012-2014, Roemer van der Meij, roemervandermeij AT gmail DOT com
+% Copyright (C) 2012-2015, Roemer van der Meij, roemervandermeij AT gmail DOT com
 %
 % This file is part of Nwaydecomp, see https://github.com/roemervandermeij/nwaydecomp
 %
@@ -96,8 +93,8 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 keyvalcheck(varargin, 'optional', {'nitt','convcrit','startval','dispprefix','precision','optimmode','degencrit','Dmode','holdparam'});
 nitt         = keyval('nitt', varargin);          if isempty(nitt),         nitt          = 2500;                  end
 convcrit     = keyval('convcrit', varargin);      if isempty(convcrit),     convcrit      = 1e-6;                  end
-startval     = keyval('startval', varargin);      if isempty(startval),     startval      = 'random';              end
-dispprefix   = keyval('dispprefix', varargin);    if isempty(dispprefix),   dispprefix    = [];                    end
+startval     = keyval('startval', varargin); 
+dispprefix   = keyval('dispprefix', varargin); 
 precision    = keyval('precision', varargin);     if isempty(precision),    precision     = eps*1e7;               end
 degencrit    = keyval('degencrit', varargin);     if isempty(degencrit),    degencrit     = .9;                    end
 Dmode        = keyval('Dmode', varargin);         if isempty(Dmode),        Dmode         = 'identity';            end
@@ -243,44 +240,40 @@ disp([dispprefix 'sigma circularity point = ' num2str(sigmacirc,'%-1.3f') 's'])
 % set degenitercount
 degenitercount = NaN;
 
-% produce random start values or from a randomly initialized narrowband decomposition, if no start-values were provided
-if ~iscell(startval)
-  switch startval
-    case 'random'
-      % use random start values
-      comp = cell(1,nmode+1);
-      % mode 1 'chan' A
-      comp{1} = rand([smode(1) ncomp]);
-      % mode 2 'freq' B
-      comp{2} = rand([smode(2) ncomp]);
-      % mode 3 'time' C
-      comp{3} = rand([smode(3) ncomp]);
-      % time-constants Sigma
-      comp{4} = rand([smode(1) ncomp]) .* sigmacirc;
-      % coherence matrix phi
-      switch Dmode
-        case 'identity'
-          comp{5} = eye(ncomp);
-        case 'kdepcomplex'
-          comp{5} = complex((rand(smode(2),ncomp,ncomp)*2)-1,(rand(smode(2),ncomp,ncomp)*2)-1);
-      end
-      
-      % norm A B and phi
-      comp = normalizecomp(comp,'normA',[],smodey,[],[],0,dispprefix,Dmode);
-      comp = normalizecomp(comp,'normB',[],smodey,[],[],0,dispprefix,Dmode);
-      switch Dmode
-        case 'identity'
-          % nothing necessary
-        case 'kdepcomplex'
-          comp = normalizecomp(comp,'normD',[],smodey,[],[],0,dispprefix,Dmode);
-      end
-      
-      % save startval
-      startval = comp;
-      
-    otherwise
-      error('startvalue method not recognized')
+% produce random start values if no start-values were provided
+if isempty(startval)
+  
+  % use random start values
+  comp = cell(1,nmode+1);
+  % mode 1 'chan' A
+  comp{1} = rand([smode(1) ncomp]);
+  % mode 2 'freq' B
+  comp{2} = rand([smode(2) ncomp]);
+  % mode 3 'time' C
+  comp{3} = rand([smode(3) ncomp]);
+  % time-constants Sigma
+  comp{4} = rand([smode(1) ncomp]) .* sigmacirc;
+  % coherence matrix phi
+  switch Dmode
+    case 'identity'
+      comp{5} = eye(ncomp);
+    case 'kdepcomplex'
+      comp{5} = complex((rand(smode(2),ncomp,ncomp)*2)-1,(rand(smode(2),ncomp,ncomp)*2)-1);
   end
+  
+  % norm A B and phi
+  comp = normalizecomp(comp,'normA',[],smodey,[],[],0,dispprefix,Dmode);
+  comp = normalizecomp(comp,'normB',[],smodey,[],[],0,dispprefix,Dmode);
+  switch Dmode
+    case 'identity'
+      % nothing necessary
+    case 'kdepcomplex'
+      comp = normalizecomp(comp,'normD',[],smodey,[],[],0,dispprefix,Dmode);
+  end
+  
+  % save startval
+  startval = comp;
+  
 else
   comp = startval;
   
@@ -343,7 +336,7 @@ clear dat
 %
 
 
-% Set some  important variables
+% set some  important variables
 ssqres     = ssqdat;
 prevssqres = 2*ssqres;
 itt        = 0;
