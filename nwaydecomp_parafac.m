@@ -20,10 +20,10 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 % Output:
 %   comp       = cell array containing component loadings per mode (all loading vectors have frobenius norm = 1)
 %   ssqres     = sums of squares of the residuals
-%   expvar     = percentage explained variance of the complete model
+%   expvar     = percentage explained variance of the data by the model
 %   scaling    = scaling coefficients belonging to the first mode (magnitude scaling) and the first complex mode (phase shift)
 %                all component loading vectors have norm = 1 and, if complex, have magnitude weighted mean phase of 0 in the output
-%                the scaling coefficients that have been removed are put in scaling, which is a 1x1 cell-arry containing a ncomp*1 vector
+%                the scaling coefficients that have been removed are put in scaling, which is a 1x1 cell-array containing an ncomp*1 vector
 %                if no complex modes are present and a 1x2 cell-array containing an extra ncomp*1 vector if they are
 %   tuckcongr  = tuckers congruence coefficents between components, high values mean some components are highly correlated, which is a sign of
 %                a degenerate model
@@ -60,7 +60,7 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 %
 
 %
-% Copyright (C) 2010-2014, Roemer van der Meij, roemervandermeij AT gmail DOT com
+% Copyright (C) 2010-2015, Roemer van der Meij, roemervandermeij AT gmail DOT com
 %
 % This file is part of Nwaydecomp, see https://github.com/roemervandermeij/nwaydecomp
 %
