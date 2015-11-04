@@ -16,7 +16,7 @@ function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2cp(dat,nc
 % for computing their loading vectors, but are concatenated during estimation of matrix P.
 % The other option is to consider the extra dimensions as 'estimating modes', which means
 % matrix P is computed for each combination of elements of each of the 'estimating modes'.
-% This option is not implemented, but equally possible. We use this approach in
+% This option is not implemented, but equally possible. This approach is used in 
 % both SPACE models (see nwaydecomp_spacefsp/spacetime).
 %
 % This function is identical to the regular PARAFAC2 algorithm, except that only the
@@ -75,6 +75,7 @@ function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2cp(dat,nc
 %   TO DO: implement linear search as in the SPACE models
 %   TO DO: merge some of the subfunctions of the PARAFAC models into externals
 %   TO DO: merge PARAFAC2 and PARAFAC2CP
+%   TO DO: change Choleskey in to the eig version
 %
 %
 %
