@@ -1,14 +1,14 @@
 function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,ncomp,varargin)
 
 % NWAYDECOMP_PARAFAC is a low-level function for nd_nwaydecomposition and is used
-% to perform nway-decomposition using the PARAFAC model. The model is modified such 
+% to perform nway-decomposition using the PARAFAC model. The model is modified such
 % that (specified) parameter vectors can be real-valued with complex-valued input.
 % It is described and used in the publication below (please cite when used):
 %
-%    van der Meij, R., Kahana, M. J., and Maris, E. (2012). Phase-amplitude coupling in 
-%        human ECoG is spatially distributed and phase diverse. Journal of Neuroscience, 
+%    van der Meij, R., Kahana, M. J., and Maris, E. (2012). Phase-amplitude coupling in
+%        human ECoG is spatially distributed and phase diverse. Journal of Neuroscience,
 %        32(1), 111-123.
-% 
+%
 %
 % Use as
 %   [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,ncomp,...)
@@ -28,7 +28,7 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 %   tuckcongr  = tuckers congruence coefficents between components, high values mean some components are highly correlated, which is a sign of
 %                a degenerate model
 %       t3core = Tucker3 core array, if the n-way parafac model is valid, this array should resemble an identity-array
-%             
+%
 %
 %
 %
@@ -42,12 +42,12 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 %   'holdmodes'   = vector of 0s and 1s indicating whether certain modes are not updated in each ALS-iteration
 %
 %
-% 
-% 
+%
+%
 %
 % This function is inspired by the N-way toolbox (http://www.models.kvl.dk/source/nwaytoolbox)
 % and the Triple SPICE project (http://www.ece.umn.edu/users/nikos/public_html/3SPICE/code.html)
-% A fantastic resource on PARAFAC/2 is written by Rasmus Bro http://www.models.kvl.dk/users/rasmus/ 
+% A fantastic resource on PARAFAC/2 is written by Rasmus Bro http://www.models.kvl.dk/users/rasmus/
 % (Multi-way Analysis book or monograph)
 %
 %
@@ -80,7 +80,7 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 
 % Get the optional input arguments
 keyvalcheck(varargin, 'optional', {'compmodes','nitt','convcrit','startval','dispprefix','holdmodes'});
-compmodes   = keyval('compmodes', varargin);   
+compmodes   = keyval('compmodes', varargin);
 nitt        = keyval('nitt', varargin);        if isempty(nitt),         nitt         = 2500;                  end
 convcrit    = keyval('convcrit', varargin);    if isempty(convcrit),     convcrit     = 1e-6;                  end
 startval    = keyval('startval', varargin);
@@ -103,7 +103,7 @@ end
 nmode = ndims(dat);
 smode = size(dat);
 compflg = ~isreal(dat);
-if isempty(compmodes), 
+if isempty(compmodes),
   compmodes = ones(1,ndims(dat)) .* compflg;
 end
 modeind = 1:nmode; % for small speedup when array is small
@@ -220,23 +220,23 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (
   % Set previous stuff (important for linear search in next iteration)
   prevcomp = comp;
   prevssqres  = ssqres;
-
+  
   
   
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % Update all component matrices per mode (this is the ALS routine)
   for imode = 1:nmode
     if holdmodes(imode)==0
-
+      
       % set remaining mode, those to calculate the krb's over
       remmodes = modeind(modeind~=imode); % remaining modes
       
-
+      
       % Calculate Z by a series of nested khatri-rao-bro products (using kr)
       Z = kr(comp(remmodes(end:-1:1)));
       
       
-      % Old code, kept here for future use 
+      % Old code, kept here for future use
       %       % Calculate Z by building tempZ over nested khatri-rao-bro products
       %       % Z is calculated by a nested series of khatri-rao-bro products
       %       % E.g. the Z for the first mode with 4 modes: Z = krbcomp(comp{4},krbcomp(comp{3},comp{2}));
@@ -244,13 +244,13 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (
       %       nkrbcomps = nremmodes-1; % number of khatri-rao-bro products to calculate
       %       tempZ     = comp{remmodes(1)}; % second element of first krbcomp is always first remaining mode
       %       for ikrbcomp = 1:nkrbcomps % loop over nested calculations of khatri-rao-bro productsda
-      %         tempZ = krbcomp(comp{remmodes(ikrbcomp+1)},tempZ); 
+      %         tempZ = krbcomp(comp{remmodes(ikrbcomp+1)},tempZ);
       %       end
       %       Z = tempZ;
       %       % Update the component matrix for the current mode
       %       comp{imode} = dat{imode} * conj(Z) * inv(Z'*Z).'; % .' is equal to conj in this case
-
-   
+      
+      
       
       % calculate ZctZ directly, which is faster than calculating Z first, especially when decomposing large arrays
       ZctZ = comp{remmodes(end)}'*comp{remmodes(end)};
@@ -262,24 +262,24 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (
       % if complex, and currmode shouldn' be, take real of output that would otherwise be computed using catted real and imag parts, it's equivalent
       if compmodes(imode)==0 && compflg % computation below is identical (taking real of real data), but split up for code transparency
         %comp{imode} = real(dat{imode} * conj(Z)) * inv(real(ZctZ)).'; % real(Z'*X) = [Zre Zim]' * [Xre Xim];b  (.' is equal to conj in this case)
-        comp{imode} = real(dat{imode} * conj(Z)) / real(ZctZ); 
+        comp{imode} = real(dat{imode} * conj(Z)) / real(ZctZ);
       else
-        %comp{imode} = (dat{imode} * conj(Z)) * conj(inv(ZctZ)); 
-        comp{imode} = (dat{imode} * conj(Z)) / conj(ZctZ); 
+        %comp{imode} = (dat{imode} * conj(Z)) * conj(inv(ZctZ));
+        comp{imode} = (dat{imode} * conj(Z)) / conj(ZctZ);
       end
-
+      
     end
   end % end of looping over modes
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   
-
   
-
+  
+  
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % normalize components, for scaling, phase and permutation indeterminancy
   comp = normalizecomp(comp,compmodes,0,dispprefix);
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+  
   
   
   
@@ -298,12 +298,12 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   
   
- 
+  
   
   % Display results of current iteration
   disp([dispprefix 'iteration ' num2str(itt) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel)])
   
-
+  
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % Algorithm stops
   % calculate final explained variance, not based on QR-decomposition
@@ -324,7 +324,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (
     disp([dispprefix 'explained variance by model: ' num2str(expvar,'%-2.1f') '%'])
   end
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+  
   
 end % end main while loop of algorithm (updating component matrices)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -531,12 +531,12 @@ model = comp{1} * kr(comp(end:-1:2)).';
 % nmode    = length(comp); % number of modes
 % nkrbcomps = nmode-2; % number of khatri-rao-bro products to calculate
 % tempmodel = comp{2}; % second element of first krbcomp is always second mode
-% 
+%
 % % start series of khatri-rao-bro products
 % for ikrbcomp = 1:nkrbcomps %
 %   tempmodel = krbcomp(comp{ikrbcomp+2},tempmodel); %
 % end
-% 
+%
 % % last step in calculating model
 % model = comp{1} * tempmodel.';
 
@@ -638,46 +638,6 @@ for imode = 1:nmode
   newcomp{imode} = comp{imode} + delta*dcomp{imode};
 end
 disp([dispprefix 'acceleration performed with delta = ' num2str(delta,'%-8.2f') ' and ssqres = '  num2str(deltassqres) ' ('  num2str(length(ssqaccel(:,1))-1) ' ssq calcs)'])
-
-
-
-
-
-
-function playground
-
-
-
-% test parafac
-I = 10;
-J = 15;
-K = 20;
-L = 8;
-F = 3;
-A = complex((rand(I,F)*2)-1,(rand(I,F)*2)-1);
-B = complex((rand(J,F)*2)-1,(rand(J,F)*2)-1);
-C = complex((rand(K,F)*2)-1,(rand(K,F)*2)-1);
-D = complex((rand(L,F)*2)-1,(rand(L,F)*2)-1);
-X = A*kr(D,kr(C,B)).';
-X = reshape(X,[I J K L]);
-
-data = [];
-data.X = X*1e6;
-data.label   = 'monkey';
-data.dimord  = 'chan_freq_time_tap';
-data.cfg     = [];
-cfg = [];
-cfg.randstart  = 3;
-cfg.model      = 'parafac';
-cfg.datparam   = 'X';
-cfg.ncompest   = 'corcondiag';
-cfg.complexdims = [1 1 1 1];
-nwaycomp = nd_nwaydecomposition(cfg,data);
-
-
-
-
-
 
 
 

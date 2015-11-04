@@ -7,16 +7,16 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %    van der Meij R, Jacobs J, Maris E (2015). Uncovering phase-coupled oscillatory networks in
 %        electrophysiological data. Human Brain Mapping
 %
-% For the model specification see the above publication. 
-% 
-% This function decomposes a chan_freq_epoch_tap 4-way array into N components. 
+% For the model specification see the above publication.
+%
+% This function decomposes a chan_freq_epoch_tap 4-way array into N components.
 % Each component consists of a:
 % A: spatial amplitude map (Jx1)
 % B: frequency profile (Kx1)
 % C: epoch profile (Lx1)
 % Lamda: spatial phase maps, one per frequency (JxK)
 % Between-component coherency is described by matrix D (the regular transpose of D in the above paper). (also denoted as phi here)
-% 
+%
 % Matrices A,B,C are of size JxN, KxN and LxN resp. Array Lambda is of size JxKxN.
 % Matrix D is of size KxNxN (if Dmode = 'kdepcomplex') or NxN (if Dmode = 'identity')
 %
@@ -58,7 +58,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %
 %
 %    Note: one can overcome memory issues by replacing the chan*taper matrices in the input replaced by the Cholesky
-%          decomposition of the chan*chan cross-products (or any other product that retains sums of squares). 
+%          decomposition of the chan*chan cross-products (or any other product that retains sums of squares).
 %          As the algorithm only uses these cross-products, the result is equivalent.
 %
 %
@@ -310,7 +310,7 @@ clear dat
 %
 %
 %
-%    
+%
 %
 %
 %
@@ -361,7 +361,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   
   
-   
+  
   
   if holdparam(4)==0
     %%%%%%%%%%%%%
@@ -386,7 +386,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
       for icomp = 1:ncomp
         magmodel{icomp} = calcmagmodely(comp,smodey,icomp,Dmode,ij,mmiBind,mmiCind,mmiDind);
       end
-            
+      
       % calculate alpha, beta, phi
       alpha = NaN(smode(2),ncomp);
       beta  = NaN(smode(2),ncomp);
@@ -677,7 +677,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
           %D(ik,:,:) = (Zdat * conj(Z)) / (Z'*Z).';
         end
         % save D
-        comp{5} = D; 
+        comp{5} = D;
         % normalize D
         comp = normalizecomp(comp,'normD',smodey,[],0,dispprefix,Dmode);
     end
@@ -709,7 +709,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
       % make currdat
       permorder   = [2 setdiff(1:4,2)];
       reshapesize = [1 prod(smodey([1 3 4]))];
-      Zdat = reshape(permute(Ydat(:,ik,:,:),permorder),reshapesize);  
+      Zdat = reshape(permute(Ydat(:,ik,:,:),permorder),reshapesize);
       
       % calculate currB
       %B(ik,:) = fastnnls(real(Z'*Z),real(Zdat * conj(Z)).');
@@ -723,7 +723,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
     %%%%%%%%%%%%%
   end
   
-    
+  
   
   if holdparam(3)==0
     %%%%%%%%%%%%%
@@ -756,7 +756,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
     C = real(Zdat * conj(Z)) * pinv(real(Z'*Z)).';
     
     % clear Zdat and Z, as they have same size as Ydat
-    clear Zdat Z 
+    clear Zdat Z
     
     % save C
     comp{3} = C;
@@ -765,7 +765,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
     %%%%%%%%%%%%%
   end
   
-
+  
   
   %%%%%%%%%%%%%
   % normalize lambda's and all signs of B and C depending on Dmode
@@ -1220,7 +1220,7 @@ if strcmp(normmode,'allsignBC')
     case 'kdepcomplex'
       % not applicable
   end
-   % save B and C (Pkl is directly modified)
+  % save B and C (Pkl is directly modified)
   comp{2} = B;
   comp{3} = C;
 end
@@ -1423,18 +1423,18 @@ while any(abs(newtstep) > precision) && (optimiter<maxoptimiter)
     end % while ~(lossb<lossa)
     % bracket found, start bisection
     %
-    % Below there are two algorithms for finding the step size with the lowest loss function. 
-    % The first finds this point using the sign of the derivative (gradient) of the loss function given the step size, 
-    % the other finds this point by just evaluating the loss function at each step size. 
-    % The first can be very slow because it calculates the gradient at every iteration, which is computationally intense 
+    % Below there are two algorithms for finding the step size with the lowest loss function.
+    % The first finds this point using the sign of the derivative (gradient) of the loss function given the step size,
+    % the other finds this point by just evaluating the loss function at each step size.
+    % The first can be very slow because it calculates the gradient at every iteration, which is computationally intense
     % when Dmode = kdepcomplex. However, using the first can result in finding the global minimum (of the main loop) in much
-    % less iterations. Moreover, the second has a lot of difficulties relating to machine precision in the loss function,  
+    % less iterations. Moreover, the second has a lot of difficulties relating to machine precision in the loss function,
     % and the step sizes themselves. It can probably be improved quite a bit. Things to keep in mind there are:
     % 1) the precision of the cosines/sines in the loss function: small lambda's can have no discernable effect on the loss
     % 2) tiny stepsizes can have a large effect on the loss if the gradients are huge. But the stepsizes can easily approach eps...
     % The first (using sign of deriv) doesn't have a stop condition relating to eps of stepsize, while the second does. I don't
     % remember why this was necessary in the second, but not in the first. This likely relates to the above two points.
-    %    
+    %
     % perform bisection on the derivative of the step size function
     %maxbsiter = ceil(log2((b-a)./precision)+1); % precision guaranteed to be reached in this many iterations
     bsiter = 0;
@@ -1845,21 +1845,21 @@ switch Dmode
     end
     % reshape
     model = reshape(model, smodey([2 3 4]));
-      
+    
 end
 
 % OLD
 % % Calculate model using vectorized massive singleton expansion
 % model = zeros(smodey(1).*smodey(2).*smodey(3).*smodey(4),1);
-% 
+%
 % if numel(compind)~=1
 %   error('calcmodely only suited for single component models')
 % end
-% 
+%
 % % compute requested model
 % for icomp = 1:numel(compind)
 %   currcomp = compind(icomp);
-%   
+%
 %   % expand and element-wise multiply
 %   switch Dmode
 %     case 'identity'
@@ -1870,7 +1870,7 @@ end
 %       currD = currD(:);
 %       compmodel = comp{1}(Aind,currcomp) .* comp{2}(Bind,currcomp) .* comp{3}(Cind,currcomp) .* abs(currD(Dind));
 %   end
-%   
+%
 %   % save model
 %   model = model + compmodel;
 % end
@@ -2000,7 +2000,7 @@ end
 function [newcomp,newssqres] = linsearch(datforQ,comp,prevcomp,smode,itt,prevssqres,ssqres,dispprefix,Dmode,holdparam)
 %
 % This subfunction searches linearly for expected loading vectors
-% to 'skip' several iterations 
+% to 'skip' several iterations
 %
 % ssqres is calculated precisely, without orthogonalizations
 %
@@ -2035,7 +2035,7 @@ for iparam = 1:nparam
   if iparam~=4
     dcomp{iparam} = comp{iparam} - prevcomp{iparam};
   else
-    % take care of circularity 
+    % take care of circularity
     curr = comp{iparam};
     prev = prevcomp{iparam};
     % get to complex domain
@@ -2222,335 +2222,6 @@ end
 
 
 
-
-
-
-
-
-
-function sandboxed_testingplayground
-
-
-clc
-clear
-for irun = 1:10000
-  irun
-  J = 10;
-  K = 6;
-  L = 5;
-  M = 7;
-  ncomp = 3;
-  A = (rand(J,ncomp));
-  A = A ./ repmat(sqrt(sum(abs(A).^2,1)),[J 1]);
-  S = (rand(J,ncomp) * .2);
-  B = (rand(K,ncomp));
-  B = B ./ repmat(sqrt(sum(abs(B).^2,1)),[K 1]);
-  F = 2:2:K*2;
-  C = (rand(L,ncomp));
-  C = C .* repmat([4 3 2],[L 1])*1e6;
-  %C = C - repmat(mean(C,1),[L 1]);
-  Dk = cell(1,K);
-  for ik = 1:K
-    Dk{ik} = orth((complex((rand(ncomp,ncomp)*2)-1,(rand(ncomp,ncomp)*2)-1)));
-    Dk{ik} = Dk{ik} ./ repmat(sqrt(sum(abs(Dk{ik}).^2,1)),[ncomp 1]);
-  end
-  Pkl = cell(K,L);
-  for ik = 1:K
-    for il = 1:L
-      Pkl{ik,il} = orth(complex((rand(M,ncomp)*2)-1,(rand(M,ncomp)*2)-1));
-    end
-  end
-  % Normalize lambda's for unicity
-  radconv = ((2*pi)./.5);
-  Scomp = exp(1i*S.*radconv);
-  magwmeanScomp = mean(Scomp.*A,1) ./ exp(1i*(.5/2)*radconv);
-  Scomp = Scomp ./ repmat(magwmeanScomp,[J 1]);
-  S      = angle(Scomp);
-  S(S<0) = S(S<0) + (2*pi);
-  S      = S ./ radconv;
-  
-  % make X using Kiers Pkl*Tk*diagDk*diagEl*A.'
-  Xkl = cell(K,L);
-  for ik = 1:K
-    for il = 1:L
-      Xkl{ik,il} = (Pkl{ik,il}*Dk{ik})*diag(B(ik,:))*diag(C(il,:))*(A .*exp(1i*2*pi*F(ik).*S)).';
-    end
-  end
-  Xl = cell(1,L);
-  for il = 1:L
-    Xl{il} = cat(3,Xkl{:,il});
-  end
-  X = cat(4,Xl{:});
-  X = permute(X,[2 3 4 1]);
-  
-  % make Y using Kiers Pkl'*X COMPLEX TRANSPOSE
-  Ykl = cell(K,L);
-  for ik = 1:K
-    for il = 1:L
-      currX = squeeze(X(:,ik,il,:)); % J*M
-      currX = currX.'; % Kiers wants it to be M*J;
-      Ykl{ik,il} = Pkl{ik,il}'*currX; % COMPLEX TRANSPOSE
-    end
-  end
-  Yl = cell(1,L);
-  for il = 1:L
-    Yl{il} = cat(3,Ykl{:,il});
-  end
-  Y = cat(4,Yl{:});
-  Y = permute(Y,[2 3 4 1]);
-  
-  % normalize C
-  C = C ./ repmat(sqrt(sum(abs(C).^2,1)),[L 1]);
-  
-  % % now, calculate D using my own LS
-  % Dkest = cell(1,K);
-  % for ik = 1:K
-  %
-  %   Z = kr(C,B(ik,:),(A .*exp(1i*2*pi*F(ik).*S)));
-  %
-  %   % make currdat
-  %   permorder   = [4 1 2 3];
-  %   reshapesize = [ncomp J*1*L];
-  %   Zdat = reshape(permute(Y(:,ik,:,:),permorder),reshapesize);
-  %
-  %   % calculate D
-  %   Dkest{ik} = Zdat * conj(Z) * inv(Z'*Z).';
-  %
-  %   % norm D
-  %   Dkest{ik} = Dkest{ik} ./ repmat(sqrt(sum(abs(Dkest{ik}).^2,1)),[ncomp 1]);
-  % end
-  % % test
-  % for ik = 1:K
-  %    Dk{ik} -  Dkest{ik}
-  % end
-  
-  %
-  % % now, calculate P using Kiers
-  % Pklest = cell(K,L);
-  % for ik = 1:K
-  %   for il = 1:L
-  %     currX = squeeze(X(:,ik,il,:)); % J*M
-  %     currX = currX.'; % Kiers want it to be M*J;
-  %     Qk = Dk{ik}*diag(B(ik,:))*diag(C(il,:))*(A .*exp(1i*2*pi*F(ik).*S)).'*currX'; % COMPLEX TRANSPOSE
-  %     [U,Sing,V] = svd(Qk,'econ');
-  %     Pklest{ik,il} = V*U';
-  %   end
-  % end
-  % % test
-  % for ik = 1:K
-  %   for il = 1:L
-  %     Pkl{ik,il} - Pklest{ik,il}
-  %   end
-  % end
-  %
-  % % now, calculate P using Kiers the other way around
-  % Pklest = cell(K,L);
-  % for ik = 1:K
-  %   for il = 1:L
-  %     currX = squeeze(X(:,ik,il,:)); % J*M
-  %     Qk = currX' * (A .*exp(1i*2*pi*F(ik).*S))*diag(B(ik,:))*diag(C(il,:))*Dk{ik}.';  % CONJUGATE TRANSPOSE FOR DATA
-  %     [U,Sings,V] = svd(Qk,'econ');
-  %     Pklest{ik,il} = conj(U*V'); % CONJUGATE
-  %   end
-  % end
-  % % test
-  % for ik = 1:K
-  %   for il = 1:L
-  %     Pkl{ik,il} - Pklest{ik,il}
-  %   end
-  % end
-  %
-  % % now, calculate P using Kiers the other way around, and using Qk*(Qk'*Qk).^-.5
-  % Pklest = cell(K,L);
-  % for ik = 1:K
-  %   for il = 1:L
-  %     currX = squeeze(X(:,ik,il,:)); % J*M
-  %     Qk = (currX' * (A .*exp(1i*2*pi*F(ik).*S))*diag(B(ik,:))*diag(C(il,:))*Dk{ik}.'); % CONJUGATE TRANSPOSE FOR DATA
-  %     Pklest{ik,il} = conj(Qk*(Qk'*Qk)^-.5); % CONJUGATE
-  %   end
-  % end
-  % % test
-  % for ik = 1:K
-  %   for il = 1:L
-  %     Pkl{ik,il} - Pklest{ik,il}
-  %   end
-  % end
-  
-  
-  % % save X,Y into a simul cell array so it can be used for testing the main algorithm
-  % global simul
-  % simul = cell(1,7);
-  % simul{1} = A;
-  % simul{2} = B;
-  % simul{3} = C;
-  % simul{4} = S;
-  % simul{5} = permute(cat(3,Dk{:}),[3 1 2]);
-  % simul{6} = X;
-  % simul{7} = Y;
-  % simul{8} = Pkl;
-  
-  % add noise
-  %X = X + (complex(rand(size(X)),rand(size(X)))*1e10);
-  
-  % run algorithm with above as input
-  [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spacefsp(X,ncomp,'convcrit',1e-8,'Dmode','identity');
-  C
-  comp{3}
-  C-comp{3}
-  %[comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spacefsp(X,ncomp,'convcrit',1e-6,'Dmode','identity');
-  %[comp,startval,ssqres,expvar,scaling] = nwaydecomp_spacefsp(nanmean(X,3),3,'convcrit',1e-6,'Dmode','identity');
-end
-
-
-
-
-
-
-
-% test nd_nwaydecomposition
-data = [];
-data.fourier = X;
-data.datsh{1} = X;
-data.datsh{2} = X;
-data.freq    = F;
-data.label   = 'monkey';
-data.dimord  = 'chan_freq_epoch_tap';
-data.cfg     = [];
-cfg = [];
-cfg.numitt     = 2;
-cfg.randstart  = 3;
-cfg.Dmode = 'identity';
-cfg.ncompestshdatparam = 'datsh';
-cfg.model      = 'spacefsp';
-cfg.ncompestshcritval = [.8 .8 0 .8 0];
-cfg.datparam   = 'fourier';
-cfg.ncompest   = 'splithalf';
-cfg.ncompestmin  = 3;
-cfg.ncompestmax  = 9;
-cfg.ncompeststep = 2;
-nwaycomp = nd_nwaydecomposition(cfg,data);
-nwaycomp.splithalfstat
-
-
-% test nd_nwaydecomposition AVGOVEREPOCH
-data = [];
-data.fourier = mean(X,3);
-data.datsh{1} = mean(X,3);
-data.datsh{2} = mean(X,3);
-data.freq    = F;
-data.label   = 'monkey';
-data.dimord  = 'chan_freq_epoch_tap';
-data.cfg     = [];
-cfg = [];
-cfg.numitt     = 2;
-cfg.randstart  = 3;
-cfg.Dmode = 'identity';
-cfg.ncompestshdatparam = 'datsh';
-cfg.model      = 'spacefsp';
-cfg.ncompestshcritval = [.8 .8 0 .8 0];
-cfg.datparam   = 'fourier';
-cfg.ncompest   = 'splithalf';
-cfg.ncompestmin  = 1;
-cfg.ncompestmax  = 9;
-cfg.ncompeststep = 2;
-nwaycomp = nd_nwaydecomposition(cfg,data);
-nwaycomp.splithalfstat
-
-
-
-data = [];
-data.fourier = X;
-data.freq    = F;
-data.label   = 'monkey';
-data.dimord  = 'chan_freq_epoch_tap';
-data.cfg     = [];
-cfg = [];
-% cfg.numitt     = 3;
-cfg.randstart  = 50;
-cfg.model      = 'spacetime';
-cfg.datparam   = 'fourier';
-cfg.ncompest   = 'corcondiag';
-cfg.peer = 'yes';
-nwaycomp = nd_nwaydecomposition(cfg,data);
-
-
-
-data = [];
-data.fourier = X;
-data.freq    = F;
-data.label   = 'monkey';
-data.dimord  = 'chan_freq_epoch_tap';
-data.cfg     = 'huh?';
-cfg = [];
-% cfg.numitt     = 3;
-cfg.randstart  = 1;
-cfg.Dmode = 'identity';
-cfg.model      = 'spacetime';
-cfg.datparam   = 'fourier';
-cfg.ncomp      = 2;
-cfg.outputfile = '~/monkeys!.mat';
-nwaycomp = nd_nwaydecomposition(cfg,data);
-
-
-
-
-
-%   cfg.model                = 'parafac', 'parafac2', 'parafac2cp', 'spacetime' or '...' (default = 'parafac')
-%   cfg.datparam             = string containing field-name of data to be decomposed
-%   cfg.randstart            = 'no' or number indicating amount of random starts (default = 100)
-%   cfg.numitt               = number of itterations to perform (default = 2500)
-%   cfg.convcrit             = number, convergence criterion (default = 1e-6)
-%   cfg.ncomp                = number of nway components to extract
-%   cfg.ncompest             = 'no', 'splithalf', 'minexpvarinc', 'corcondiag', 'corconsplith' or 'degeneracy' (default = 'no')
-%   cfg.ncompestmax          = maximum number of components to try to extract (default = 50)
-%   cfg.ncompestshdatparam   = 'splithalf': string containing field-name of partitioned data. Data should be kept in 1x2 cell-array, each partition in one cell
-%   cfg.ncompestshcritval    = 'splithalf': critical value to use for selecting number of components using splif half (detault = 0.85)
-%   cfg.ncompestvarinc       = 'minexpvarinc': minimal required increase in explained variance when increasing number of compononents by 1
-%   cfg.ncompestcorconval    = 'corcondiag': minimum value of the core consistency diagnostic for increasing the number of components, between 0 and 1 (default is 0.7)
-
-
-
-
-
-
-
-
-
-
-% set slave parameters
-rng(sum(clock.*1e6))
-groupname = tempname;
-groupname = groupname(end-6:end);
-username  = 'roevdmei';
-timreq    = 5*24*3600;
-memreq    = 50*1024^3;
-nslave    = 2;
-% start slaves and master
-peermaster('group',groupname,'allowgroup',groupname)
-roe_peerslavelimitedstart(nslave, groupname, memreq, timreq)
-
-% test nd_nwaydecomposition
-data = [];
-data.fourier = X;
-data.datsh{1} = X;
-data.datsh{2} = X;
-data.freq    = F;
-data.label   = 'monkey';
-data.dimord  = 'chan_freq_epoch_tap';
-data.cfg     = [];
-cfg = [];
-cfg.numitt     = 2500;
-cfg.randstart  = 2;
-cfg.Dmode = 'kdepcomplex';
-cfg.ncompestshdatparam = 'datsh';
-cfg.model      = 'spacefsp';
-cfg.ncompestshcritval = [.8 .8 0 .8 0];
-cfg.datparam   = 'fourier';
-cfg.ncompest   = 'splithalf';
-cfg.ncompestmax = 4;
-cfg.distcomp.system = 'torque';
-cfg.distcomp.p2presubdel = 60*60*24*3;
-nwaycomp = nd_nwaydecomposition(cfg,data);
 
 
 

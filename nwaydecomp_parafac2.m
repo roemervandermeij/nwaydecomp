@@ -1,23 +1,23 @@
 function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2(dat,ncomp,specmodes,varargin)
 
 % NWAYDECOMP_PARAFAC2 is a low-level function for nd_nwaydecomposition and is used
-% to perform nway-decomposition using the PARAFAC2 model. 
-% The PRAFAC2 model is modified such that (specified) parameter vectors can be real-valued 
+% to perform nway-decomposition using the PARAFAC2 model.
+% The PRAFAC2 model is modified such that (specified) parameter vectors can be real-valued
 % with complex-valued input. This is described for the PARAFAC model in the publication
 % below (please cite when used):
 %
-%    van der Meij, R., Kahana, M. J., and Maris, E. (2012). Phase-amplitude coupling in 
-%        human ECoG is spatially distributed and phase diverse. Journal of Neuroscience, 
+%    van der Meij, R., Kahana, M. J., and Maris, E. (2012). Phase-amplitude coupling in
+%        human ECoG is spatially distributed and phase diverse. Journal of Neuroscience,
 %        32(1), 111-123.
 %
 % If the input array contains more than 3 dimensions, then the original PARAFAC2 model
 % is expanded such that the extra dimensions are considered as 'outer modes' of the
-% cross-product (see below). The 'outer mode'-dimensions are considered as regular modes 
+% cross-product (see below). The 'outer mode'-dimensions are considered as regular modes
 % for computing their loading vectors, but are concatenated during estimation of matrix P.
 % The other option is to consider the extra dimensions as 'estimating modes', which means
 % matrix P is computed for each combination of elements of each of the 'estimating modes'.
-% This option is not implemented, but equally possible. We use this approach in 
-% both SPACE models (see nwaydecomp_spacefsp/spacetime). 
+% This option is not implemented, but equally possible. We use this approach in
+% both SPACE models (see nwaydecomp_spacefsp/spacetime).
 %
 %
 % Use as
@@ -57,7 +57,7 @@ function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2(dat,ncom
 %
 % This function is inspired by the N-way toolbox (http://www.models.kvl.dk/source/nwaytoolbox)
 % and the Triple SPICE project (http://www.ece.umn.edu/users/nikos/public_html/3SPICE/code.html)
-% A fantastic resource on PARAFAC/2 is written by Rasmus Bro http://www.models.kvl.dk/users/rasmus/ 
+% A fantastic resource on PARAFAC/2 is written by Rasmus Bro http://www.models.kvl.dk/users/rasmus/
 % (Multi-way Analysis book or monograph)
 %
 %
@@ -96,7 +96,7 @@ function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2(dat,ncom
 
 % Get the optional input arguments
 keyvalcheck(varargin, 'optional', {'compmodes','specmodes','nitt','convcrit','startval','dispprefix'});
-compmodes   = keyval('compmodes', varargin);  
+compmodes   = keyval('compmodes', varargin);
 nitt        = keyval('nitt', varargin);        if isempty(nitt),         nitt         = 2500;                  end
 convcrit    = keyval('convcrit', varargin);    if isempty(convcrit),     convcrit     = 1e-6;                  end
 startval    = keyval('startval', varargin);
@@ -118,7 +118,7 @@ end
 compflg = ~isreal(dat);
 nmode = ndims(dat);
 modeindex = 1:nmode;
-if isempty(compmodes), 
+if isempty(compmodes),
   compmodes = ones(1,ndims(dat)) .* compflg;
 end
 
@@ -417,24 +417,24 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) % nee
     currmode = imode; % current mode
     remmodes = setdiff(1:nmode,currmode); % remaining modes
     
-     % Calculate Z by a series of nested khatri-rao-bro products (using kr)
-      Z = kr(comp(remmodes(end:-1:1)));
-      
-      
-      % Old code, kept here for future use 
-      %       % Calculate Z by building tempZ over nested khatri-rao-bro products
-      %       % Z is calculated by a nested series of khatri-rao-bro products
-      %       % E.g. the Z for the first mode with 4 modes: Z = krbcomp(comp{4},krbcomp(comp{3},comp{2}));
-      %       nremmodes = length(remmodes); % number of remaining modes
-      %       nkrbcomps = nremmodes-1; % number of khatri-rao-bro products to calculate
-      %       tempZ     = comp{remmodes(1)}; % second element of first krbcomp is always first remaining mode
-      %       for ikrbcomp = 1:nkrbcomps % loop over nested calculations of khatri-rao-bro productsda
-      %         tempZ = krbcomp(comp{remmodes(ikrbcomp+1)},tempZ); 
-      %       end
-      %       Z = tempZ;
-      %       % Update the component matrix for the current mode
-      %       comp{imode} = dat{imode} * conj(Z) * inv(Z'*Z).'; % .' is equal to conj in this case
-	
+    % Calculate Z by a series of nested khatri-rao-bro products (using kr)
+    Z = kr(comp(remmodes(end:-1:1)));
+    
+    
+    % Old code, kept here for future use
+    %       % Calculate Z by building tempZ over nested khatri-rao-bro products
+    %       % Z is calculated by a nested series of khatri-rao-bro products
+    %       % E.g. the Z for the first mode with 4 modes: Z = krbcomp(comp{4},krbcomp(comp{3},comp{2}));
+    %       nremmodes = length(remmodes); % number of remaining modes
+    %       nkrbcomps = nremmodes-1; % number of khatri-rao-bro products to calculate
+    %       tempZ     = comp{remmodes(1)}; % second element of first krbcomp is always first remaining mode
+    %       for ikrbcomp = 1:nkrbcomps % loop over nested calculations of khatri-rao-bro productsda
+    %         tempZ = krbcomp(comp{remmodes(ikrbcomp+1)},tempZ);
+    %       end
+    %       Z = tempZ;
+    %       % Update the component matrix for the current mode
+    %       comp{imode} = dat{imode} * conj(Z) * inv(Z'*Z).'; % .' is equal to conj in this case
+    
     % concatenate Z if it shouldn't be complex (and it is)
     if compflg % only cat when input was complex
       if compmodes(currmode)==0 && ~isreal(Z)
@@ -457,21 +457,21 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) % nee
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   
   
-    
+  
   
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   % Compute fit using a QR shortcut
-%   % compute QR decomp of all modes but incompl
-%   rcomp = cell(1,nmode);
-%   % perform QR-decomposition of all component-matrices
-%   for imode = find(specmodes~=2)
-%     [dum rcomp{imode} ] = qr(comp{imode},0);
-%   end
-%   % do the same for B multiplied with conj(P)
-%   for iestimval = 1:smode(estimmode)
-%     [dum rcomp{incomplmode}{iestimval}] = qr(conj(P{iestimval}) * comp{incomplmode},0);
-%   end
-%   model     = calcmodel_parafac2qr(rcomp);
+  %   % Compute fit using a QR shortcut
+  %   % compute QR decomp of all modes but incompl
+  %   rcomp = cell(1,nmode);
+  %   % perform QR-decomposition of all component-matrices
+  %   for imode = find(specmodes~=2)
+  %     [dum rcomp{imode} ] = qr(comp{imode},0);
+  %   end
+  %   % do the same for B multiplied with conj(P)
+  %   for iestimval = 1:smode(estimmode)
+  %     [dum rcomp{incomplmode}{iestimval}] = qr(conj(P{iestimval}) * comp{incomplmode},0);
+  %   end
+  %   model     = calcmodel_parafac2qr(rcomp);
   model     = calcmodel_parafac2(comp,P,utilitymodes,estimmode,smode,smodeincompl); % subfunction for calculating model
   ssqmodel  = nansum(nansum(abs(model).^2));
   ssqres    = ssqdat - ssqmodel;
@@ -531,11 +531,11 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) % nee
     end
     model     = calcmodel_parafac2(comp,P,utilitymodes,estimmode,smode,smodeincompl); % subfunction for calculating model
     ssqres    = nansum(nansum(abs(datmain - model).^2));
-%     qrexpvar  = expvar;
+    %     qrexpvar  = expvar;
     expvar    = 100 - ((ssqres / ssqdat) * 100);
-%     if abs(qrexpvar - expvar) > 1
-%       error(['problem with QR-based acceleration: expvar = ' num2str(expvar,'%-2.4f') '%  QR-based expvar = ' num2str(qrexpvar,'%-2.4f') '%'])
-%     end
+    %     if abs(qrexpvar - expvar) > 1
+    %       error(['problem with QR-based acceleration: expvar = ' num2str(expvar,'%-2.4f') '%  QR-based expvar = ' num2str(qrexpvar,'%-2.4f') '%'])
+    %     end
   end
   if ~(abs((ssqres - prevssqres) / prevssqres) > convcrit)
     disp([dispprefix 'convergence criterion of ' num2str(convcrit) ' reached in ' num2str(itt) ' iterations'])
@@ -564,53 +564,53 @@ end % end main while loop of algorithm (updating component matrices)
 % Calculate Core Consistency Diagnostic if desired
 if nargout > 6
   error('experimental')
-%   % this is an approximation of the t3core for the PARAFAC model, but made for every K, and then averaged
-%   % loop over the estimmode
-%   t3core = NaN([smode(estimmode) prod(ones(1,nmode)*ncomp)]);
-%   for iestimval = 1:smode(estimmode)
-%     
-%     % first, caculate the kronecker products of all loading matrices
-%     % calculate kroncomp by building kroncomp over nested kronecker products
-%     % E.g. t with 4 modes: kronprod = kron(D,kron(C,kron(B,A)))
-%     % perform steps based on the number of modes
-%     if nmode>4
-%       tempkron = comp{1};
-%       % krbcomps over utility modes
-%       for inkroncomp = 1:nmodes-3
-%         tempkron = kron(comp{inkroncomp+1},tempkron);
-%       end
-%       % first-to-last kronecker product
-%       tempkron = kron(conj(P{iestimval})*comp{end-1},tempkron);
-%       % last kronecker product
-%       kroncomp = kron(comp{end}(iestimval,:),tempkron);
-%     elseif nmode==4
-%       % first kronecker product
-%       tempkron = kron(comp{2},comp{1});
-%       % first-to-last kronecker product
-%       tempkron = kron(conj(P{iestimval})*comp{3},tempkron);
-%       % last kronecker product
-%       kroncomp = kron(comp{4}(iestimval,:),tempkron);
-%     elseif nmode==3
-%       % first-to-last kronecker product
-%       tempkron = kron(conj(P{iestimval})*comp{2},comp{1});
-%       % last kronecker product
-%       kroncomp = kron(comp{3}(iestimval,:),tempkron);
-%     end
-%     
-%     % vec the data
-%     datvec = datforq{iestimval}(:);
-%     % calculate tucker3 core array
-%     % if complex, make it real by concatenating the real and imagenary parts
-%     if compflg
-%       t3coretmp = cat(1,real(kroncomp),imag(kroncomp)) \ cat(1,real(datvec),imag(datvec));
-%     else
-%       t3coretmp = kroncomp \ datvec;
-%     end
-%     t3core(iestimval,:) = t3coretmp;
-%   end % estimval
-%   % average over estimmode and reshape
-%   t3core = squeeze(mean(t3core,1));
-%   t3core = reshape(t3core,ones(1,nmode)*ncomp);
+  %   % this is an approximation of the t3core for the PARAFAC model, but made for every K, and then averaged
+  %   % loop over the estimmode
+  %   t3core = NaN([smode(estimmode) prod(ones(1,nmode)*ncomp)]);
+  %   for iestimval = 1:smode(estimmode)
+  %
+  %     % first, caculate the kronecker products of all loading matrices
+  %     % calculate kroncomp by building kroncomp over nested kronecker products
+  %     % E.g. t with 4 modes: kronprod = kron(D,kron(C,kron(B,A)))
+  %     % perform steps based on the number of modes
+  %     if nmode>4
+  %       tempkron = comp{1};
+  %       % krbcomps over utility modes
+  %       for inkroncomp = 1:nmodes-3
+  %         tempkron = kron(comp{inkroncomp+1},tempkron);
+  %       end
+  %       % first-to-last kronecker product
+  %       tempkron = kron(conj(P{iestimval})*comp{end-1},tempkron);
+  %       % last kronecker product
+  %       kroncomp = kron(comp{end}(iestimval,:),tempkron);
+  %     elseif nmode==4
+  %       % first kronecker product
+  %       tempkron = kron(comp{2},comp{1});
+  %       % first-to-last kronecker product
+  %       tempkron = kron(conj(P{iestimval})*comp{3},tempkron);
+  %       % last kronecker product
+  %       kroncomp = kron(comp{4}(iestimval,:),tempkron);
+  %     elseif nmode==3
+  %       % first-to-last kronecker product
+  %       tempkron = kron(conj(P{iestimval})*comp{2},comp{1});
+  %       % last kronecker product
+  %       kroncomp = kron(comp{3}(iestimval,:),tempkron);
+  %     end
+  %
+  %     % vec the data
+  %     datvec = datforq{iestimval}(:);
+  %     % calculate tucker3 core array
+  %     % if complex, make it real by concatenating the real and imagenary parts
+  %     if compflg
+  %       t3coretmp = cat(1,real(kroncomp),imag(kroncomp)) \ cat(1,real(datvec),imag(datvec));
+  %     else
+  %       t3coretmp = kroncomp \ datvec;
+  %     end
+  %     t3core(iestimval,:) = t3coretmp;
+  %   end % estimval
+  %   % average over estimmode and reshape
+  %   t3core = squeeze(mean(t3core,1));
+  %   t3core = reshape(t3core,ones(1,nmode)*ncomp);
 end
 
 
@@ -787,12 +787,12 @@ model = comp{1} * kr(comp(end:-1:2)).';
 % nmode    = length(comp); % number of modes
 % nkrbcomps = nmode-2; % number of khatri-rao-bro products to calculate
 % tempmodel = comp{2}; % second element of first krbcomp is always second mode
-% 
+%
 % % start series of khatri-rao-bro products
 % for ikrbcomp = 1:nkrbcomps %
 %   tempmodel = krbcomp(comp{ikrbcomp+2},tempmodel); %
 % end
-% 
+%
 % % last step in calculating model
 % model = comp{1} * tempmodel.';
 
@@ -910,7 +910,7 @@ for iestimval = 1:sestim
   
   % last step in calculating model
   model = comp{1} * tempmodel.';
- 
+  
   % save modelk
   modelk{iestimval} = model;
 end
@@ -925,474 +925,24 @@ model       = horzcat(modelk{:});
 % calculate a the square root even if rank problems
 function X = psqrt(A,tol)
 
-   % Produces A^(-.5) even if rank-problems
+% Produces A^(-.5) even if rank-problems
 
-   [U,S,V] = svd(A,0);
-   if min(size(S)) == 1
-     S = S(1);
-   else
-     S = diag(S);
-   end
-   if (nargin == 1)
-     tol = max(size(A)) * S(1) * eps;
-   end
-   r = sum(S > tol);
-   if (r == 0)
-     X = zeros(size(A'));
-   else
-     S = diag(ones(r,1)./sqrt(S(1:r)));
-     X = V(:,1:r)*S*U(:,1:r)';
-  end
-
-
-
-
-
-
-function sandboxed_testingplayground
-
-%
-nans = nan(10,15,10,25);
-nans(:,:,:,1) = complex(rand(10,15,10),rand(10,15,10));
-dat = cat(3,complex(rand(10,15,10,25),rand(10,15,10,25)), nans);
-specmodes = [1 1 2 3];
-ncomp = 2;
-nwaydecomp_parafac2(dat,ncomp,specmodes,'compmodes',[1 1 1 1])
-
-%
-nans = nan(10,15,30);
-nans(:,:,1) = complex(rand(10,15),rand(10,15));
-dat = cat(2,complex(rand(10,15,30),rand(10,15,30)), nans);
-specmodes = [1 2 3];
-ncomp = 2;
-nwaydecomp_parafac2(dat,ncomp,specmodes,'compmodes',[1 1 1])
-
-
-%
-dat = NaN(10,15,20,25);
-for ix = 1:10
-  for iy = 1:15
-    for iz = 1:20
-      for ia = 1:25
-        dat(ix,iy,iz,ia) = ix*1e9+iy*1e6+iz*1e3+ia;
-      end
-    end
-  end
+[U,S,V] = svd(A,0);
+if min(size(S)) == 1
+  S = S(1);
+else
+  S = diag(S);
 end
-nwaydecomp_parafac2(dat,2,[1 1 2 3])
-
-
-%
-dat = complex(rand(15,50,25),rand(15,50,25));
-specmodes = [1 2 3];
-ncomp = 2;
-nwaydecomp_parafac2(dat,ncomp,specmodes,'compmodes',[1 1 1])
-nwaydecomp_parafac(dat,ncomp,'compmodes',[1 1 1])
-
-
-%
-dat = rand(10,15,20,25);
-specmodes = [1 2 3 1];
-ncomp = 2;
-nwaydecomp_parafac2(dat,ncomp,specmodes)
-nwaydecomp_parafac(dat,ncomp)
-
-
-
-
-
-I = 10;
-J = 15;
-K = 20;
-L = 25;
-F = 4;
-A = rand(I,F);
-B = rand(F,F);
-C = rand(K,F);
-D = rand(L,F);
-Pk = orth(rand(J,F));
-Bfull = Pk*B;
-P = NaN(J,F,K);
-Bfull = NaN(J,F,K);
-for i = 1:K
-  P(:,:,i) = orth(rand(J,F));
-  Bfull(:,:,i) = P(:,:,i)*B;
+if (nargin == 1)
+  tol = max(size(A)) * S(1) * eps;
 end
-
-
-
-
-
-% % 4-way Pk
-% X = A*krbcomp(D,krbcomp(C,B)).';
-% X = reshape(X,[I,J,K,L]);
-% Pk = cell(1,K);
-% for i = 1:K
-%   Xunfold = squeeze(X(:,:,i,:));
-%   Xunfold = reshape(Xunfold,[I,J*L]);
-%   Qk      = Xunfold.' * (A*(krbcomp(D,krbcomp(C(i,:),B))).');
-%   Pk{i}   = (Qk*(Qk.'*Qk))^-.5;
-% end
-
-
-
-%%%%
-% 4-way estimation of complex Pk and PARAFAC ALS step
-clear
-clc
-I = 10;
-J = 15;
-K = 20;
-L = 25;
-F = 3;
-A = complex(rand(I,F),rand(I,F));
-B = complex(rand(J,F),rand(J,F));
-C = complex(rand(F,F),rand(F,F));
-D = complex(rand(L,F),rand(L,F));
-Pl = orth(complex(rand(K,F),rand(K,F)));
-Cfull = Pl*C;
-X = A*krbcomp(D,krbcomp(Cfull,B)).';
-X = reshape(X,[I,J,K,L]);
-Y = reshape(A*krbcomp(D,krbcomp(C,B)).',[I,J,F,L]);
-Pl2 = cell(1,L);
-for i = 1:L
-  Xunfold = squeeze(X(:,:,:,i)); % order is I, J, K
-  Xunfold = permute(Xunfold,[3 1 2]); % order should be K, I, J
-  Xunfold = reshape(Xunfold,[K I*J]); % unfolded with K after I
-  Qkpart  = A*(krbcomp(D(i,:),krbcomp(C,B))).'; % K is now F, so the order is I * JF (and not I * KF)
-  Qkpart  = reshape(Qkpart,[I,J,F]); % order is I, J, F
-  Qkpart  = permute(Qkpart,[3 1 2]); % order should be F, I, J (so after reshape and transpose the form is IJ*F)
-  Qkpart  = reshape(Qkpart,[F I*J]);
-  Qkpart  = Qkpart.'; % transpose so dimensions are: IK*F
-  Qk      = conj(Xunfold) * Qkpart; % TRANSPOSE IS NOW CONJ HERE BECAUSE OF PERMUTE
-  Pl2{i}   = ((Qk*(Qk'*Qk)^-.5));
-  %   [U,S,V] = svd(Xunfold' * (A*(krbcomp(C(i,:),B)).'),0);
-  %   Pk2{i}  = U*V';
+r = sum(S > tol);
+if (r == 0)
+  X = zeros(size(A'));
+else
+  S = diag(ones(r,1)./sqrt(S(1:r)));
+  X = V(:,1:r)*S*U(:,1:r)';
 end
-% reassemble X into Xfromk
-Xfroml = cell(1,L);
-for i = 1:L
-  Xfroml{i} = A*krbcomp(D(i,:),krbcomp(conj(Pl2{i})*C,B)).';
-end
-Xfroml = horzcat(Xfroml{:});
-Xfroml = reshape(Xfroml,[I,J,K,L]);
-Yfroml = cell(1,L);
-for i = 1:L
-  Xunfold = squeeze(X(:,:,:,i)); % order is I, J, K
-  Xunfold = permute(Xunfold,[3 1 2]); % order should be K, I, J
-  Xunfold = reshape(Xunfold,[K I*J]); % unfolded with L after I
-  Yl      = (Xunfold.' * Pl2{i}).';
-  Yl      = reshape(Yl,[F,I,J]);
-  Yl      = permute(Yl,[2 3 1]);
-  Yl      = reshape(Yl,[I,J*F]);
-  Yfroml{i} = Yl;
-end
-Yfroml = horzcat(Yfroml{:});
-%Yfromk = reshape(Yfromk,[I,F,K]);
-disp(' ')
-disp(['Xdiff = ' num2str(mean(mean(mean(mean(Xfroml-X)))))])
-disp(['Ydiff = ' num2str(mean(mean(mean(mean(reshape(Yfroml,[I,J,F,L])-Y)))))])
-% one ALS step A,B,C
-Aals = Yfroml * pinv(krbcomp(D,krbcomp(C,B))).';
-disp(['Adiff = ' num2str(mean(mean(Aals-A)))])
-Bals = reshape(permute(reshape(Yfroml,[I,J,F,L]),[2 1 3 4]),[J,I*F*L]) * pinv(krbcomp(D,krbcomp(C,Aals))).';
-disp(['Bdiff = ' num2str(mean(mean(Bals-B)))])
-Cals = reshape(permute(reshape(Yfroml,[I,J,F,L]),[3 1 2 4]),[F,I*J*L]) * pinv(krbcomp(D,krbcomp(Bals,Aals))).';
-disp(['Cdiff = ' num2str(mean(mean(Cals-C)))])
-Dals = reshape(permute(reshape(Yfroml,[I,J,F,L]),[4 1 2 3]),[L,I*J*F]) * pinv(krbcomp(Cals,krbcomp(Bals,Aals))).';
-disp(['Cdiff = ' num2str(mean(mean(Dals-D)))])
-
-
-
-
-
-%%%%
-% 3-way estimation of complex Pk and PARAFAC ALS step  - BOOM! (successful)
-clear
-clc
-I = 10;
-J = 15;
-K = 20;
-F = 3;
-A = complex(rand(I,F),rand(I,F));
-B = complex(rand(F,F),rand(F,F));
-C = complex(rand(K,F),rand(K,F));
-Pk = orth(complex(rand(J,F),rand(J,F)));
-Bfull = Pk*B;
-X = A*krbcomp(C,Bfull).';
-X = reshape(X,[I,J,K]);
-Y = reshape(A*krbcomp(C,B).',[I,F,K]);
-Pk2 = cell(1,K);
-for i = 1:K
-  Xunfold = squeeze(X(:,:,i));
-  Xunfold = reshape(Xunfold,[I,J]);
-  Qk      = Xunfold' * (A*(krbcomp(C(i,:),B)).');
-  Pk2{i}  = ((Qk*(Qk'*Qk)^-.5));
-  %   [U,S,V] = svd(Xunfold' * (A*(krbcomp(C(i,:),B)).'),0);
-  %   Pk2{i}  = U*V';
-end
-% reassemble X into Xfromk
-Xfromk = cell(1,K);
-for i = 1:K
-  Xfromk{i} = reshape(A*krbcomp(C(i,:),conj(Pk2{i})*B).',[I,J]);
-end
-Xfromk = horzcat(Xfromk{:});
-Xfromk = reshape(Xfromk,[I,J,K]);% assemble Y from Yk
-Yfromk = cell(1,K);
-for i = 1:K
-  Xunfold   = squeeze(X(:,:,i));
-  Xunfold   = reshape(Xunfold,[I,J]);
-  Yfromk{i} = Xunfold * (Pk2{i});
-end
-Yfromk = horzcat(Yfromk{:});
-%Yfromk = reshape(Yfromk,[I,F,K]);
-disp(' ')
-disp(['Xdiff = ' num2str(mean(mean(mean(Xfromk-X))))])
-disp(['Ydiff = ' num2str(mean(mean(mean(reshape(Yfromk,[I,F,K])-Y))))])
-% one ALS step A,B,C
-Aals = Yfromk * pinv(krbcomp(C,B)).';
-disp(['Adiff = ' num2str(mean(mean(Aals-A)))])
-Bals = reshape(permute(reshape(Yfromk,[I,F,K]),[2,1,3]),[F,I*K]) * pinv(krbcomp(C,Aals)).';
-disp(['Bdiff = ' num2str(mean(mean(Bals-B)))])
-Cals = reshape(permute(reshape(Yfromk,[I,F,K]),[3,1,2]),[K,I*F]) * pinv(krbcomp(Bals,Aals)).';
-disp(['Cdiff = ' num2str(mean(mean(Cals-C)))])
-
-
-
-
-%%%%
-% 3-way estimation of Pk - BOOM! (successful)
-X = A*krbcomp(C,Bfull).';
-X = reshape(X,[I,J,K]);
-Y = reshape(A*krbcomp(C,B).',[I,F,K]);
-Pk = cell(1,K);
-for i = 1:K
-  Xunfold = squeeze(X(:,:,i));
-  Xunfold = reshape(Xunfold,[I,J]);
-  Qk      = Xunfold.' * (A*(krbcomp(C(i,:),B)).');
-  Pk{i}   = Qk*(Qk'*Qk)^-.5;
-end
-% reassemble X into Xfromk
-Xfromk = cell(1,K);
-for i = 1:K
-  Xfromk{i} = reshape(A*krbcomp(C(i,:),Pk{i}*B).',[I,J]);
-end
-Xfromk = horzcat(Xfromk{:});
-Xfromk = reshape(Xfromk,[I,J,K]);
-% assemble Y from Yk
-Yfromk = cell(1,K);
-for i = 1:K
-  Xunfold   = squeeze(X(:,:,i));
-  Xunfold   = reshape(Xunfold,[I,J]);
-  Yfromk{i} = Xunfold * Pk{i};
-end
-Yfromk = horzcat(Yfromk{:});
-Yfromk = reshape(Yfromk,[I,F,K]);
-
-
-
-
-%%%%
-% 4-way estimation of Pk - (extra mode is utility mode) BOOM! (successful)
-X = A*krbcomp(D,krbcomp(C,Bfull)).';
-X = reshape(X,[I,J,K,L]);
-Y = reshape(A*krbcomp(D,krbcomp(C,B)).',[I,F,K,L]);
-Pk = cell(1,K);
-for i = 1:K
-  Xunfold = squeeze(X(:,:,i,:)); % order is I, J, L
-  Xunfold = permute(Xunfold,[2 1 3]); % order should be J, I, L
-  Xunfold = reshape(Xunfold,[J I*L]); % unfolded with L after I
-  Qkpart  = A*(krbcomp(D,krbcomp(C(i,:),B))).'; % J is now F, so the order is I * FL (and not I * LF)
-  Qkpart  = reshape(Qkpart,[I,F,L]); % order is I, F, L
-  Qkpart  = permute(Qkpart,[2 1 3]); % order should be F, I, L (so after reshape and transpose the form is IL*F)
-  Qkpart  = reshape(Qkpart,[F I*L]);
-  Qkpart  = Qkpart.'; % transpose so dimensions are: IL*F
-  Qk      = Xunfold * Qkpart; % TRANSPOSE NOT HERE NOW BECAUSE OF PERMUTE
-  Pk{i}   = Qk*(Qk'*Qk)^-.5;
-end
-% reassemble X into Xfromk
-Xfromk = cell(1,K);
-for i = 1:K
-  Xfromk{i} = reshape(A*krbcomp(D,krbcomp(C(i,:),Pk{i}*B)).',[I,J,L]);
-end
-Xfromk = horzcat(Xfromk{:});
-Xfromk = reshape(Xfromk,[I,J,L,K]); % order is I, J, L, K
-Xfromk = permute(Xfromk,[1 2 4 3]); % order should be I, J, K, L
-% assemble Y from Yk
-Yfromk = cell(1,K);
-for i = 1:K
-  Xunfold   = squeeze(X(:,:,i,:)); % order is I, J, L
-  Xunfold   = permute(Xunfold,[2 1 3]); % order should be J, I, L
-  Xunfold   = reshape(Xunfold,[J I*L]); % unfolded with L after I
-  Xunfold   = Xunfold.'; % transpose, order is IL*J
-  Yfromk{i} = (Xunfold * Pk{i}).'; % transpose, order is F*IL
-end
-Yfromk = horzcat(Yfromk{:}); % order is F*ILK
-Yfromk = reshape(Yfromk,[F,I,L,K]);
-Yfromk = permute(Yfromk,[2 1 4 3]); % order should be I,F,K,L
-% 4-way estimation of Pk - (extra mode is estimating mode)
-Pkl = cell(K,L);
-for k = 1:K
-  for l = 1:L
-    Xunfold = squeeze(X(:,:,k,l));
-    Xunfold = reshape(Xunfold,[I,J]);
-    Qk      = Xunfold.' * (A*(krbcomp(D(l,:),krbcomp(C(k,:),B))).');
-    Pkl{k,l}   = Qk*(Qk'*Qk)^-.5;
-  end
-end
-% reassemble X into Xfromk
-Xfromk = cell(K,L);
-for k = 1:K
-  for l = 1:L
-    Xfromk{k,l} = reshape(A*krbcomp(D(l,:),krbcomp(C(k,:),Pk{k}*B)).',[I,J]);
-  end
-end
-Xfromk = horzcat(Xfromk{:});
-Xfromk = reshape(Xfromk,[I,J,L,K]); % order is I, J, L, K
-Xfromk = permute(Xfromk,[1 2 4 3]); % order should be I, J, K, L
-% assemble Y from Yk
-Yfromk = cell(1,K);
-for i = 1:K
-  Xunfold   = squeeze(X(:,:,i,:)); % order is I, J, L
-  Xunfold   = permute(Xunfold,[2 1 3]); % order should be J, I, L
-  Xunfold   = reshape(Xunfold,[J I*L]); % unfolded with L after I
-  Xunfold   = Xunfold.'; % transpose, order is IL*J
-  Yfromk{i} = (Xunfold * Pk{i}).'; % transpose, order is F*IL
-end
-Yfromk = horzcat(Yfromk{:}); % order is F*ILK
-Yfromk = reshape(Yfromk,[F,I,L,K]);
-Yfromk = permute(Yfromk,[2 1 4 3]); % order should be I,F,K,L
-
-
-
-
-
-
-% % testing equaly of Bfull and Pk*B
-% Xk = cell(1,K);
-% for i = 1:K
-%   Xk{i} = reshape(A*krbcomp(C(i,:),Pk*B).',[I,J]);
-% end
-% Xfromk = horzcat(Xk{:});
-% Xfromk = reshape(Xfromk,[I,J,K]);
-% X = A*krbcomp(C,Bfull).';
-% X = reshape(X,[I,J,K]);
-%
-%
-% % testing 3-way reassamble for k, reshape operations and such
-% Xk = cell(1,K);
-% for i = 1:K
-%   Xk{i} = reshape(A*krbcomp(C(i,:),Bfull).',[I,J]);
-% end
-% Xfromk = horzcat(Xk{:});
-% Xfromk = reshape(Xfromk,[I,J,K]);
-% X = A*krbcomp(C,Bfull).';
-% X = reshape(X,[I,J,K]);
-
-
-
-% test multidimensional reshape
-test = NaN(2,4,6,8);
-for ix = 1:2
-  for iy = 1:4
-    for iz = 1:6
-      for ia = 1:8
-        test(ix,iy,iz,ia) = ix*1000+iy*100+iz*10+ia;
-      end
-    end
-  end
-end
-test2 = reshape(test,[2 4*6*8]);
-
-
-% test cat over 3rd dimension
-test = cell(1,3);
-for i = 1:3
-  test{i} = [110 120; 210 220] + i;
-end
-test = cat(3,test{:});
-
-
-
-
-
-%%% test subfunc calcmodel_parafac2 and other main func stuff
-clear
-clc
-I = 10;
-J = 15;
-K = 20;
-F = 4;
-A = complex(rand(I,F),rand(I,F));
-B = complex(rand(F,F),rand(F,F));
-C = complex(rand(K,F),rand(K,F));
-Pk = orth(complex(rand(J,F),rand(J,F)));
-Bfull = Pk*B;
-Ynf = A*krbcomp(C,B)';
-X = A*krbcomp(C,Bfull)';
-Xfromk = cell(1,K);
-for i = 1:K
-  Xfromk{i} = A*krbcomp(C(i,:),Pk*B)';
-end
-%Xfromk = horzcat(Xfromk{:});
-%Xfroml = reshape(Xfroml,[I,J,K,L]); % order is I, J, L, K
-Yfromk = cell(1,K);
-Pfromk = cell(1,K);
-for i = 1:K
-  Qk        = Xfromk{i}' * (A*krbcomp(C(i,:),B)');
-  Pfromk{i} = Qk*(Qk'*Qk)^-.5;
-  Yfromk{i} = Xfromk{i} * Pfromk{i};
-end
-Yfromk = horzcat(Yfromk{:});
-% Xfromk = horzcat(Xfromk{:});
-% disp('')
-% disp(['Pdiff = ' num2str(mean(mean(Pfromk{1}-Pk)))])
-% disp(['Xdiff = ' num2str(mean(mean(mean(Xfromk-X))))])
-% disp(['Ydiff = ' num2str(mean(mean(mean(Yfromk-Ynf))))])
-% disp('')
-%
-datforq       = Xfromk;
-comp          = {A,B,C};
-comporg       = comp;
-ncomp         = F;
-specmodes     = [1 2 3];
-utilitymodes  = [1];
-incomplmode   = 2;
-estimmode     = 3;
-smode         = [I,J,K];
-smodey        = [I, F, K];
-smodeincompl  = repmat(J,[1 K]);
-nmode         = 3;
-modeindex     = 1:nmode;
-%
-disp(['Pfuncdiff = ' num2str(mean(mean(P{1}-Pk)))])
-disp(['Yfuncdiff = ' num2str(mean(mean(mean(reshape(Ynf,[I,F,K])-Y))))])
-disp(['CompPittdiff = ' num2str(mean(mean(vertcat(comporg{:})-vertcat(comp{:}))))])
-disp(['CompPittModelYdiff = ' num2str(mean(mean(Ynf-(comp{1}*krbcomp(comp{3},comp{2})'))))])
-
-
-
-
-
-
-figure
-compass(datmain(10,1:1000))
-hold on
-compass(model(10,1:1000),'r')
-
-
-
-
-
-figure
-compass(datmain(10,1:1000)-model(10,1:1000))
-hold on
-compass(model(10,1:1000),'r')
-
-
-
-
-
 
 
 
