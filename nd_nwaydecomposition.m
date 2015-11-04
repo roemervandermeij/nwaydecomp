@@ -319,7 +319,16 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     if ~isnumeric(data.(cfg.datparam))
       error('specifying data field as filename is only possible with manually constructed chan_freq_epoch_tap')
     end
-    if any(any(diff(data.cumtapcnt,1,2))) % throw an informative error if this ever becomes supported in ft_freqanalysis, just to be sure
+    % failsafe error for if this ever becomes supported in ft_freqananalysis (which it shouldn't)
+    if strcmp(cfg.datparam,'fourierspctrm') && (strcmp(data.cfg.keeptrials,'no') || strcmp(data.cfg.keeptrials,'no'))
+      error('fourierspctrm must have been computed using keeptrials and keeptapers = yes')
+    end
+    % failsafe error for if this ever becomes supported in ft_freqananalysis (which it shouldn't)
+    if strcmp(cfg.datparam,'crsspctrm') && strcmp(data.cfg.keeptrials,'yes') && strcmp(data.cfg.keeptrials,'no')
+      error('crsspctrm must have been computed using keeptrials = yes and keeptapers = no') % this can likely be detected below if it gets implemented
+    end
+    % failsafe error for if this ever becomes supported in ft_freqananalysis (which it might)
+    if any(any(diff(data.cumtapcnt,1,2))) 
       error(['Variable number of tapers over frequency is not supported using output from ft_freqanalysis.'...
              'In order to do this using a custom ''chan_freq_epoch_tap'' see the tutorial on rhythmic components'...
              'and the code below this error message.'])
@@ -350,10 +359,24 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
           currfour = currfour(:,:); % this unfolds the dimensions other than chan, will work regardless of time dim presence/absence
           % get rid of NaNs (should always be the same over channels)
           currfour(:,isnan(currfour(1,:))) = [];
+          % obtain count of time-points and tapers
+          currntimetap = size(currfour,2);
           % compute the csd
           csd = currfour*currfour';
+          % correct for number of time-points and tapers (if fourierspctrm, individual tapers and time-points (if mtmconvol) are not aggegrated, enforced above)
+          % this step is CRUCIAL if we want to interpret the loadings of the trial profile
+          csd = csd ./ currntimetap; 
         else
-          csd = nansum(permute(data.(cfg.datparam)(itrial,:,:,ifreq,:),[2 3 5 1 4]),3); % will work regardless of time dim presence/absence
+          currcsd = permute(data.(cfg.datparam)(itrial,:,:,ifreq,:),[2 3 5 1 4]); % will work regardless of time dim presence/absence
+          % get rid of NaNs (should always be the same over channel-pairs)
+          currcsd(:,:,isnan(squeeze(currcsd(1,1,:)))) = [];
+          % obtain count of time-points (tapers are never kept if crsspctrm, enforced above)
+          currntime = size(currcsd,3);
+          % obtain csd
+          csd = sum(currcsd,3); 
+          % correct for number of time-points (if crsspctrm, time-points (if mtmconvol) are not aggegrated, but tapers are, enforced above)
+          % this step is CRUCIAL if we want to interpret the loadings of the trial profile
+          csd = csd ./  currntime; % this is a rather circumstantial way to do this, but is such to keep it similar to above
         end
         %%%%%%%%%
         % Reduce SPACE memory load and computation time by replacing each chan_taper matrix by the
@@ -683,7 +706,7 @@ end
 fieldnames = {'grad','elec','trialinfo'};
 nwaycomp = copyfields(data, nwaycomp, fieldnames);
 % ft_freqanalysis/connectivityanalysis/timelockanalysis
-fieldnames = {'freq','time','cumtapcnt','cumsumcnt','dof','labelcmb'};
+fieldnames = {'freq','time','dof','labelcmb'}; % this explicitly does not contain 'cumtapcnt','cumsumcnt', as these are controlled for
 nwaycomp = copyfields(data, nwaycomp, fieldnames);
 % ft_componentanalysis
 fieldnames = {'topo','topolabel','unmixing'};
