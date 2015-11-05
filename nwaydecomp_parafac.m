@@ -52,7 +52,6 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 %
 %
 %
-%   TO DO: compute t3core without using KronProd
 %   TO DO: merge some of the subfunctions of the PARAFAC models into externals
 %
 %
@@ -346,37 +345,31 @@ comp = normalizecomp(comp,compmodes,1,dispprefix);
 % Calculate Core Consistency Diagnostic if desired
 if nargout > 5
   disp([dispprefix 'calculating tucker3 core array'])
-  % first, set the kronecker products of all loading matrices, using KronProd
-  Z = KronProd(comp,1:nmode); % calculate Z by building Z over nested kronecker products, using KronProd
-  % vec the data
-  X = dat{1}(:);
-  % calculate tucker3 core array
-  % if complex, take rtea of output that would otherwise be computed using catted real and imag parts, it's equivalentt
-  if compflg % computation below is identical (taking real of real data), but split up for code transparency
-    t3core = pinv(real(full(Z'*Z))) * real(X'*Z)'; % real(Z'*X) = [Zre Zim]' * [Xre Xim]; (full is a KronProd fuction computing the full numerical kronecker output)
-  else
-    t3core = pinv(Z'*Z) * (X'*Z)'; % equivalent to do pinv(Z) * X, but is faster
+  % Calculate ZtZ 
+  % building it over nested kronecker products of ctc's (in 3-way case, ZtZ = kron(c3tc3,kron(c2tc2,c1tc1)) )
+  tempZtZ    = comp{1}'*comp{1}; % second element of first kronprod is always first ctc
+  for imode = 2:nmode % loop over nested calculations of kron products
+    tempZtZ = kron(comp{imode}'*comp{imode},tempZtZ);
   end
-  
-  %   % test code for implementing without KronProd for a 3 way test case
-  %   % build ZtZ
-  %   c1tc1 = comp{1}'*comp{1};
-  %   c2tc2 = comp{2}'*comp{2};
-  %   c3tc3 = comp{3}'*comp{3};
-  %   ZtZ = kron(c3tc3,kron(c2tc2,c1tc1));
-  %   % build XtZ
-  %   XtZ = zeros(ncomp^ncomp,1);
-  %   % one loop for each mode
-  %   ind = 0;
-  %   for icompm3 = 1:ncomp
-  %     for icompm2 = 1:ncomp
-  %       for icompm1 = 1:ncomp
-  %         ind = ind + 1;
-  %         XtZ(ind) = dat{1}(:)' * kron(comp{3}(:,icompm3),kron(comp{2}(:,icompm2),comp{1}(:,icompm1)));
-  %       end
-  %     end
-  %   end
-  %   t3core = pinv(real(ZtZ)) * real(XtZ); % real(Z'*X) = [Zre Zim]' * [Xre Xim]; (full is a KronProd fuction computing the full numerical kronecker output)
+  ZtZ = tempZtZ;
+  % Calculate XtZ
+  XtZ = zeros(ncomp^nmode,1);
+  % determine component combinations
+  modecompind = zeros(ncomp.^nmode,nmode);
+  for imode = 1:nmode
+    step1 = reshape(repmat((1:ncomp)',[1 max([1 ncomp.^(imode-1)])])',[ncomp*max([1 ncomp.^(imode-1)]) 1]);
+    step2 = repmat(step1,[ncomp.^(nmode-imode) 1]);
+    modecompind(:,imode) = step2;
+  end
+  % build XtZ per component combination
+  for iccomb = 1:(ncomp.^nmode)
+    tempckron = comp{1}(:,modecompind(iccomb,1)); % second element of first kronprod is always start at first mode
+    for imode = 2:nmode % loop over nested calculations of kron products
+      tempckron = kron(comp{imode}(:,modecompind(iccomb,imode)),tempckron);
+    end
+     XtZ(iccomb) = dat{1}(:)' * tempckron;
+  end
+  t3core = pinv(real(ZtZ)) * real(XtZ); % real(Z'*X) = [Zre Zim]' * [Xre Xim]; 
 end
 
 % Compute ssq per component and sort
@@ -638,6 +631,12 @@ for imode = 1:nmode
   newcomp{imode} = comp{imode} + delta*dcomp{imode};
 end
 disp([dispprefix 'acceleration performed with delta = ' num2str(delta,'%-8.2f') ' and ssqres = '  num2str(deltassqres) ' ('  num2str(length(ssqaccel(:,1))-1) ' ssq calcs)'])
+
+
+
+
+
+
 
 
 
