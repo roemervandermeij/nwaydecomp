@@ -287,10 +287,6 @@ if strcmp(cfg.ncompest,'splithalf')
   end
 end
 
-% Check model specfic input requirements based on dimord
-if   any(strcmp(cfg.model,{'spacetime','spacefsp','spacefsp'})) && (~strcmp(data.dimord,'chan_freq_epoch_tap') || ndimsdat~=4)
-  error('incorrect input for specified model')
-end
 
 % Model-specific errors
 % parafac2/parafac2cp
