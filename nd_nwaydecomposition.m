@@ -323,7 +323,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     if ~any(strcmp(specestmethod,{'mtmfft','mtmconvol'}))
       error(['distortion-free scaling of frequency-dependent time-windows lengths over frequency using ft_freqanalysis with method = ' specestmethod ' is not guaranteed'])
     end
-    if strcmp(specestmethod,'mtmconvol') && ~isfield(cfg.fsample)
+    if strcmp(specestmethod,'mtmconvol') && ~isfield(cfg,'fsample')
       warning(['Your input resulted from ft_freqanalysis with method = mtmconvol. If you''re also using frequency-dependent window-lengths ' ... 
                'it is highly recommended to supply cfg.fsample, containing the sampling rate of the data in Hz, to correct for ' ...
                'frequency-dependent distortions of power'])
@@ -347,7 +347,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
       data = ft_checkdata(data,'cmbrepresentation','full');
     end
     % if no trials are present, add trials as singular dimension to ensure SPACE input is 4-way
-    if strncmp(data.dimord,'rpt',3)
+    if ~strncmp(data.dimord,'rpt',3)
       data.dimord = ['rpt_' data.dimord];
       data.(cfg.datparam) = permute(data.(cfg.datparam),[ndimsdat+1 1:ndimsdat]);
     end
