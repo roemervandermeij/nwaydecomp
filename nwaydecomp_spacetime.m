@@ -1026,7 +1026,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
   
 end % end main while loop of algorithm (updating component matrices)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%   BB4WAYCPFOURIER ALS   END  %%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%   SPACE-time ALS        END  %%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 

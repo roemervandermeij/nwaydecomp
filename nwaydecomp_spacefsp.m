@@ -298,7 +298,7 @@ clear dat
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%   SPACE-FSP ALS   START  %%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%   SPACE-FSP ALS   START        %%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % The below code calculates an ALS estimate of the SPACE-FSP model
@@ -933,7 +933,7 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
   
 end % end main while loop of algorithm (updating component matrices)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%   BB3WAYFOURIER ALS   END  %%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%   SPACE-FSP ALS       END  %%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
