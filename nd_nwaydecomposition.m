@@ -72,7 +72,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.model                = 'parafac', 'parafac2', 'parafac2cp', 'spacetime', 'spacefsp'
 %   cfg.datparam             = string, containing field name of data to be decomposed (must be a numerical array)
 %   cfg.randstart            = 'no' or number indicating amount of random starts for final decomposition (default = 50) 
-%   cfg.numitt               = number of iterations to perform (default = 2500)
+%   cfg.numiter              = number of iterations to perform (default = 2500)
 %   cfg.convcrit             = number, convergence criterion (default = 1e-8)
 %   cfg.degencrit            = number, degeneracy criterion (default = 0.7)
 %   cfg.ncomp                = number of components to extract
@@ -167,7 +167,7 @@ cfg.model               = ft_getopt(cfg, 'model',                  []);
 cfg.datparam            = ft_getopt(cfg, 'datparam',               []);
 cfg.complexdims         = ft_getopt(cfg, 'complexdims',            []);
 cfg.randstart           = ft_getopt(cfg, 'randstart',              50);
-cfg.numitt              = ft_getopt(cfg, 'numitt',                 2500);
+cfg.numiter             = ft_getopt(cfg, 'numiter',                2500);
 cfg.convcrit            = ft_getopt(cfg, 'convcrit',               1e-8);
 cfg.degencrit           = ft_getopt(cfg, 'degencrit',              0.7);
 cfg.ncomp               = ft_getopt(cfg, 'ncomp',                  []);
@@ -508,7 +508,7 @@ if ~exist(dat,'var')
   dat         = data.(cfg.datparam);
 end
 model         = cfg.model;
-nitt          = cfg.numitt;
+niter          = cfg.numiter;
 convcrit      = cfg.convcrit;
 degencrit     = cfg.degencrit;
 ncomp         = cfg.ncomp;
@@ -565,22 +565,22 @@ switch cfg.ncompest
     end
     
     % perform splithalf component number estimate
-    [ncomp, splithalfstat] = splithalf(model, datpart1, datpart2, nrandestcomp, estnum, estshcritval, nitt, convcrit, degencrit, distcomp, modelopt{:}); % subfunction
+    [ncomp, splithalfstat] = splithalf(model, datpart1, datpart2, nrandestcomp, estnum, estshcritval, niter, convcrit, degencrit, distcomp, modelopt{:}); % subfunction
     
   case 'degeneracy'
     % Warn about component estimation
     warning('this is a very liberal method for component estimation')
     
     % estimate ncomp
-    [ncomp] = degeneracy(model, dat, nrandestcomp, estnum, nitt, convcrit, degencrit, distcomp, modelopt{:}); % subfunction
+    [ncomp] = degeneracy(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, modelopt{:}); % subfunction
     
   case 'minexpvarinc'
     % estimate ncomp
-    [ncomp] = minexpvarinc(model, dat, nrandestcomp, estnum, nitt, convcrit, degencrit, distcomp, expvarinc, modelopt{:}); % subfunction
+    [ncomp] = minexpvarinc(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, expvarinc, modelopt{:}); % subfunction
     
   case 'corcondiag'
     % estimate ncomp
-    [ncomp, corcondiagstat] = corcondiag(model, dat, nrandestcomp, estnum, nitt, convcrit, degencrit, distcomp, corconval, modelopt{:}); % subfunction
+    [ncomp, corcondiagstat] = corcondiag(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, corconval, modelopt{:}); % subfunction
     
     % extract startval if nrand is the same
     if (nrandestcomp==nrand) && (corcondiagstat.randomstatsucc.convcrit==convcrit) % convcrit is the same as used for randomstart below 
@@ -605,12 +605,12 @@ end % switch ncompest
 disp('performing FINAL decomposition')
 % call low-level function and get start values if requested
 % set up general ooptions
-opt = {'nitt', nitt, 'convcrit', convcrit};
+opt = {'niter', niter, 'convcrit', convcrit};
 switch cfg.model
   case 'parafac'
     if isnumeric(nrand)
       if ~exist('startval','var') && ~exist('randomstat','var')
-        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, nitt, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
+        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, niter, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
       end
       if strcmp(cfg.t3core,'yes')
         [comp, dum, expvar, scaling, tuckcongr, t3core] = feval(['nwaydecomp_' model], dat, ncomp, 'startval', startval, opt{:}, modelopt{:});
@@ -627,7 +627,7 @@ switch cfg.model
   case 'parafac2'
     if isnumeric(nrand)
       if ~exist('startval','var') && ~exist('randomstat','var')
-        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, nitt, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
+        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, niter, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
       end
       [comp, P, dum, expvar, scaling, tuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, cfg.specialdims, 'startval', startval, opt{:}, modelopt{:});
     else
@@ -636,16 +636,16 @@ switch cfg.model
   case 'parafac2cp'
     if isnumeric(nrand)
       if ~exist('startval','var') && ~exist('randomstat','var')
-        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, nitt, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
+        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, niter, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
       end
       [comp, P, dum, expvar, scaling, tuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, cfg.specialdims, 'startval', startval, opt{:}, modelopt{1:4});
     else
-      [comp, P, dum, expvar, scaling, tuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, cfg.specialdims, 'nitt', nitt, opt{:}, modelopt{1:4});
+      [comp, P, dum, expvar, scaling, tuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, cfg.specialdims, 'niter', niter, opt{:}, modelopt{1:4});
     end
   case 'spacetime'
     if isnumeric(nrand)
       if ~exist('startval','var') && ~exist('randomstat','var')
-        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, nitt, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
+        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, niter, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
       end
       if strcmp(cfg.t3core,'yes')
         [comp, dum, dum, expvar, scaling, tuckcongr, t3core] = feval(['nwaydecomp_' model], dat, ncomp, data.freq, 'Dmode', cfg.Dmode, 'startval', startval, opt{:});
@@ -662,7 +662,7 @@ switch cfg.model
   case 'spacefsp'
     if isnumeric(nrand)
       if ~exist('startval','var') && ~exist('randomstat','var')
-        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, nitt, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
+        [startval, randomstat] = randomstart(model, dat, ncomp, nrand, niter, convcrit, degencrit, distcomp, [], modelopt{:}); % subfunction
       end
       if strcmp(cfg.t3core,'yes')
         [comp, dum, dum, expvar, scaling, tuckcongr, t3core] = feval(['nwaydecomp_' model], dat, ncomp, 'Dmode', cfg.Dmode, 'startval', startval, opt{:});
@@ -787,7 +787,7 @@ ft_postamble savevar nwaycomp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% Subfunction for cfg.ncompest = 'degeneracy'            %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [ncomp] = degeneracy(model, dat, nrand, estnum, nitt, convcrit, degencrit, distcomp, varargin)
+function [ncomp] = degeneracy(model, dat, nrand, estnum, niter, convcrit, degencrit, distcomp, varargin)
 
 % get model specific options from keyval
 % not necessary, not explicitly used
@@ -805,12 +805,12 @@ for incomp = 1:estnum(2)
   
   % Get decompositions for current incomp
   % get start values for decomposition for current incomp
-  [dum, randomstat] = randomstart(model, dat, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['degen-only ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  [dum, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['degen-only ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
   
   % see if there are any non-degenerate start values and set flag if otherwise
   if length(randomstat.degeninit)==nrand
     % try again with another round
-    [dum, randomstat] = randomstart(model, dat, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['degen-only ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [dum, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['degen-only ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
     if length(randomstat.degeninit)==nrand
       degenflg = true;
     else
@@ -839,7 +839,7 @@ end % incomp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% Subfunction for cfg.ncompest = 'minexpvarinc'          %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [ncomp] = minexpvarinc(model, dat, nrand, estnum, nitt, convcrit, degencrit, distcomp, expvarinc, varargin)
+function [ncomp] = minexpvarinc(model, dat, nrand, estnum, niter, convcrit, degencrit, distcomp, expvarinc, varargin)
 
 % get model specific options from keyval
 % not necessary, not explicitly used
@@ -859,7 +859,7 @@ for incomp = 1:estnum(2)
   
   % Get decompositions for current incomp
   % get start values for decomposition for current incomp
-  [dum, randomstat] = randomstart(model, dat, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['minexpvarinc ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  [dum, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['minexpvarinc ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
   currexpvar = randomstat.expvar(1);
   
   % see if there are any non-degenerate start values and set flag if otherwise
@@ -900,7 +900,7 @@ end % incomp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% Subfunction for cfg.ncompest = 'corcondiag'           %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [ncomp, corcondiagstat] = corcondiag(model, dat, nrand, estnum, nitt, convcrit, degencrit, distcomp, corconval, varargin)
+function [ncomp, corcondiagstat] = corcondiag(model, dat, nrand, estnum, niter, convcrit, degencrit, distcomp, corconval, varargin)
 
 % get model specific options from keyval
 switch model
@@ -940,13 +940,13 @@ while ~succes % the logic used here is identical as in splithalf, they should be
   
   % Get decompositions for current incomp
   % get quickly computed start values for decomposition for current incomp
-  [startval, randomstat] = randomstart(model, dat, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['corcondiag ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  [startval, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['corcondiag ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
   
   
   % see if there are any non-degenerate start values and set flag if otherwise
   if length(randomstat.degeninit)==nrand
     % try again with another round
-    [startval, randomstat] = randomstart(model, dat, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['corcondiag ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [startval, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['corcondiag ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
     if length(randomstat.degeninit)==nrand
       degenflg = true;
     else
@@ -958,7 +958,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
   
  
   % get final decompositions for current incomp
-  opt = {'nitt', nitt, 'convcrit', convcrit, 'dispprefix',['corcondiag ncomp = ' num2str(incomp) ': ']};
+  opt = {'niter', niter, 'convcrit', convcrit, 'dispprefix',['corcondiag ncomp = ' num2str(incomp) ': ']};
   switch model
     case 'parafac'
       [estcomp,dum,dum,dum,dum,t3core] = feval(['nwaydecomp_' model], dat, incomp, 'startval', startval, 'compmodes', compmodes, opt{:});
@@ -1210,7 +1210,7 @@ corcondiagstat.ncompsucc       = ncompsucc;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% Subfunction for cfg.ncompest = 'splithalf'             %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [ncomp,splithalfstat] = splithalf(model, datpart1, datpart2, nrand, estnum, estshcritval, nitt, convcrit, degencrit, distcomp, varargin)
+function [ncomp,splithalfstat] = splithalf(model, datpart1, datpart2, nrand, estnum, estshcritval, niter, convcrit, degencrit, distcomp, varargin)
 
 % get model specific options from keyval
 switch model
@@ -1251,19 +1251,19 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   
   % Get decompositions for current incomp
   % get start values for decomposition for current incomp
-  [startval1, randomstat1] = randomstart(model, datpart1, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['split-half part 1 ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
-  [startval2, randomstat2] = randomstart(model, datpart2, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['split-half part 2 ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  [startval1, randomstat1] = randomstart(model, datpart1, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half part 1 ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  [startval2, randomstat2] = randomstart(model, datpart2, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half part 2 ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
   
   % see if there are any non-degenerate start values and set flag if otherwise (and try again if it only goes for one partition)
   if length(randomstat1.degeninit)==nrand && length(randomstat2.degeninit)==nrand
     degenflg = true;
   elseif length(randomstat1.degeninit)==nrand && length(randomstat2.degeninit)~=nrand % if random inits for part1 do not contain non-degenerate solutions, but they do for part2, retry part1
-    [startval1, randomstat1] = randomstart(model, datpart1, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['split-half ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [startval1, randomstat1] = randomstart(model, datpart1, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
     if length(randomstat1.degeninit)==nrand % if there are still no non-degenerates
       degenflg = true;
     end
   elseif length(randomstat1.degeninit)~=nrand && length(randomstat2.degeninit)==nrand% if random inits for part2 do not contain non-degenerate solutions, but they do for part1, retry part2
-    [startval2, randomstat2] = randomstart(model, datpart2, incomp, nrand, nitt, convcrit, degencrit, distcomp, ['split-half ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [startval2, randomstat2] = randomstart(model, datpart2, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
     if length(randomstat2.degeninit)==nrand % if there are still no non-degenerates
       degenflg = true;
     end
@@ -1286,11 +1286,11 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   estcomp = cell(1,2);
   estcomp{1} = cell(1,nondegennrand);
   estcomp{2} = cell(1,nondegennrand);
-  % set nitt to a small number in case the solution in random starts has not converged yet (which will cause the below to last very long)
-  fnitt = 10; % FIXME: this isn't really necessary, here because of historical reasons
+  % set niter to a small number in case the solution in random starts has not converged yet (which will cause the below to last very long)
+  fniter = 10; % FIXME: this isn't really necessary, here because of historical reasons
   % set up general options
-  optsh1 = {'nitt', fnitt, 'convcrit', convcrit, 'dispprefix',['split-half part 1 ncomp = ' num2str(incomp) ': ']};
-  optsh2 = {'nitt', fnitt, 'convcrit', convcrit, 'dispprefix',['split-half part 2 ncomp = ' num2str(incomp) ': ']};
+  optsh1 = {'niter', fniter, 'convcrit', convcrit, 'dispprefix',['split-half part 1 ncomp = ' num2str(incomp) ': ']};
+  optsh2 = {'niter', fniter, 'convcrit', convcrit, 'dispprefix',['split-half part 2 ncomp = ' num2str(incomp) ': ']};
   for inondegenrand = 1:nondegennrand
     switch model
       case 'parafac'
@@ -1746,7 +1746,7 @@ splithalfstat.allrandomstat     = allrandomstat;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% Subfunction for calculating randomstart-values         %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [startval, randomstat] = randomstart(model, dat, ncomp, nrand, nitt, convcrit, degencrit, distcomp, dispprefix, varargin)
+function [startval, randomstat] = randomstart(model, dat, ncomp, nrand, niter, convcrit, degencrit, distcomp, dispprefix, varargin)
 
 % get model specific options from keyval
 switch model
@@ -1770,15 +1770,15 @@ end
 
 
 % start random decompositions
-nitt = round(nitt); % just to make sure it's an integer
+niter = round(niter); % just to make sure it's an integer
 if ~isempty(distcomp.system)
   disp([dispprefix 'random start: determining optimal starting values from random initialization']);
   disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using ' distcomp.system]);
   
   % prepare cell arrays for input
   cellncomp         = repmat({ncomp},[nrand 1]);
-  cellnittkey       = repmat({'nitt'},[nrand 1]);
-  cellnittval       = repmat({nitt},[nrand 1]);
+  cellniterkey      = repmat({'niter'},[nrand 1]);
+  cellniterval      = repmat({niter},[nrand 1]);
   cellconvcritkey   = repmat({'convcrit'},[nrand 1]);
   cellconvcritval   = repmat({convcrit},[nrand 1]);
   celldispprefixkey = repmat({'dispprefix'},[nrand 1]);
@@ -1799,7 +1799,7 @@ if ~isempty(distcomp.system)
   end
   
   % set up general options
-  opt = {cellnittkey, cellnittval, cellconvcritkey, cellconvcritval, celldispprefixkey, celldispprefixval};
+  opt = {cellniterkey, cellniterval, cellconvcritkey, cellconvcritval, celldispprefixkey, celldispprefixval};
   if isempty(distcomp.memreq)
     if ~isnumeric(dat)
       s = whos('-file', dat);
@@ -1885,7 +1885,7 @@ else
   for irand = 1:nrand
     disp([dispprefix 'random start ' num2str(irand) ': decomposition of random initialization ' num2str(irand) ' of ' num2str(nrand) ' started']);
     % set up general options
-    opt = {'nitt', nitt, 'convcrit', convcrit, 'dispprefix',[dispprefix 'random start ' num2str(irand) ': ']};
+    opt = {'niter', niter, 'convcrit', convcrit, 'dispprefix',[dispprefix 'random start ' num2str(irand) ': ']};
     switch model
       case 'parafac'
         [rndcomp,rndssqres,rndexpvar,rndscaling,rndtuckcongr] = feval(['nwaydecomp_' model], dat, ncomp, 'compmodes', compmodes, opt{:});
@@ -2019,7 +2019,7 @@ randomstat.scaling        = randscaling;
 % add settings for randstart
 randomstat.nrand          = nrand;
 randomstat.convcrit       = convcrit;
-randomstat.nitt           = nitt;
+randomstat.niter          = niter;
 
 
 

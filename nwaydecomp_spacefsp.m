@@ -44,7 +44,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %
 %
 % Additional options should be specified in key-value pairs and can be
-%   'nitt'         = maximum number of iterations (default = 2500)
+%   'niter'        = maximum number of iterations (default = 2500)
 %   'convcrit'     = convergence criterion (default = 1e-6)
 %   'startval'     = previously computed start-values
 %   'dispprefix'   = prefix added to all disp-calls, handy when function is used in many loops after each other
@@ -88,8 +88,8 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 
 
 % Get the optional input arguments
-keyvalcheck(varargin, 'optional', {'nitt','convcrit','startval','dispprefix','precision','optimmode','degencrit','Dmode','holdparam'});
-nitt         = keyval('nitt', varargin);          if isempty(nitt),         nitt          = 2500;                  end
+keyvalcheck(varargin, 'optional', {'niter','convcrit','startval','dispprefix','precision','optimmode','degencrit','Dmode','holdparam'});
+niter        = keyval('niter', varargin);         if isempty(niter),        niter         = 2500;                  end
 convcrit     = keyval('convcrit', varargin);      if isempty(convcrit),     convcrit      = 1e-6;                  end
 startval     = keyval('startval', varargin);
 dispprefix   = keyval('dispprefix', varargin); 
@@ -150,7 +150,7 @@ end
 disp([dispprefix 'data is complex array with dimensions ' dimstring])
 disp([dispprefix 'a SPACE-FSP model with ' num2str(ncomp) ' components will be estimated '])
 disp([dispprefix 'number of data-points per (relevant) parameter = ' num2str(prod(smode) ./ (sum([smodey([1 2 3]) smodey(1)*smodey(2) smodey(2)*smode(3)*smode(4)])*ncomp),'%-2.1f')])
-disp([dispprefix 'maximum number of iterations = ' num2str(nitt)])
+disp([dispprefix 'maximum number of iterations = ' num2str(niter)])
 disp([dispprefix 'convergence criterion = ' num2str(convcrit)])
 disp([dispprefix 'precision used = ' num2str(precision)])
 
@@ -315,7 +315,7 @@ clear dat
 % set some  important variables
 ssqres     = ssqdat;
 prevssqres = 2*ssqres;
-itt        = 0;
+iter       = 0;
 
 % create indices for subfunction calcmagmodely
 mmiBind = repmat((1:smodey(2)).',[prod(smodey([3 4])) 1]);
@@ -324,16 +324,16 @@ mmiDind = mmiBind +  (reshape(repmat(1:smodey(4),[prod(smodey([2 3])) 1]),[prod(
 
 % start main loop of algorithm
 disp([dispprefix 'starting ALS algorithm'])
-while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (ssqres > precision) && (abs(ssqres - prevssqres) > precision) && (abs(ssqres ./ ssqdat) > precision)
+while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && (ssqres > precision) && (abs(ssqres - prevssqres) > precision) && (abs(ssqres ./ ssqdat) > precision)
   
   
-  % Count itt
-  itt = itt + 1;
+  % Count iter
+  iter = iter + 1;
   
   
   % Perform linear search every X iterations if relative ssqres increase is smaller than 10% (from the perspective of the previous iteration)
-  if rem((itt-1),3) == 0 && ((prevssqres / ssqres) <= 1.10) && (((itt-1)^1/3) >= 2) && (itt < (nitt-2))
-    [comp,ssqres] = linsearch(datforQ,comp,prevcomp,smode,itt-1,prevssqres,ssqres,dispprefix,Dmode,holdparam); % subfunction for performing linear search
+  if rem((iter-1),3) == 0 && ((prevssqres / ssqres) <= 1.10) && (((iter-1)^1/3) >= 2) && (iter < (niter-2))
+    [comp,ssqres] = linsearch(datforQ,comp,prevcomp,smode,iter-1,prevssqres,ssqres,dispprefix,Dmode,holdparam); % subfunction for performing linear search
     % normalize all signs
     comp = normalizecomp(comp,'signA',smodey,[],0,dispprefix,Dmode);
     comp = normalizecomp(comp,'signB',smodey,[],0,dispprefix,Dmode);
@@ -885,15 +885,15 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
   % Display results of current iteration
   switch optimmode
     case 'ndimensional'
-      disp([dispprefix 'iteration ' num2str(itt) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
+      disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
         ' - NR-steps: ' num2str(mean(cpnewtloops),'%-2.1f') ' ('  num2str(std(cpnewtloops),'%-2.1f') ') | ', ...
         'LS-steps: ' num2str(mean(cplsloops),'%-2.1f')   ' ('  num2str(std(cplsloops),'%-2.1f')   ') | lambda-nu/uf/ni: ' num2str(sum(~lambupdsuc(:)),'%-4.0f')  '/' num2str(lambupdfail,'%-4.0f')  '/' num2str(lambupdsame,'%-4.0f') ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
     case {'singlecomppairals','singlecomp'}
-      disp([dispprefix 'iteration ' num2str(itt) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
+      disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
         ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
   end
-  if prevssqres<ssqres && itt>1
-    disp(['iteration ' num2str(itt) ' - warning: moved away from solution, ssqres increased by ' num2str(ssqres-prevssqres) ' and ' num2str(((ssqres-prevssqres)/prevssqres)*100) '%'])
+  if prevssqres<ssqres && iter>1
+    disp(['iteration ' num2str(iter) ' - warning: moved away from solution, ssqres increased by ' num2str(ssqres-prevssqres) ' and ' num2str(((ssqres-prevssqres)/prevssqres)*100) '%'])
     warning('Moved away from solution, something went horribly wrong. Restoring previous best estimate and stopping algorithm')
     comp = prevcomp;
     ssqres = prevssqres;
@@ -906,15 +906,15 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) && (s
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % Algorithm stops
   if ~(abs((ssqres - prevssqres) / prevssqres) > convcrit)
-    disp([dispprefix 'convergence criterion of ' num2str(convcrit) ' reached in ' num2str(itt) ' iterations'])
+    disp([dispprefix 'convergence criterion of ' num2str(convcrit) ' reached in ' num2str(iter) ' iterations'])
     disp([dispprefix 'explained variance by model: ' num2str(expvar,'%-2.1f') '%'])
     % calculate finale expvar without using qr-decomposition and throw error when deviating to far
     ssqresnonqr = calcssqressparse(comp,Pkl,smode,datforQ,Dmode); % subfunction for calculating ssqres
     if (abs(ssqresnonqr - ssqres) / ssqresnonqr) > (eps*1e6)
       warning(['problem with QR-based acceleration: ssqres diff =  ' num2str(ssqres-ssqresnonqr) ' and ' num2str(((ssqres-ssqresnonqr)/ssqresnonqr)*100) '%'])
     end
-  elseif (itt == nitt)
-    disp([dispprefix 'maximum number of iterations = ' num2str(itt) ' reached'])
+  elseif (iter == niter)
+    disp([dispprefix 'maximum number of iterations = ' num2str(iter) ' reached'])
     disp([dispprefix 'explained variance by model: ' num2str(expvar,'%-2.1f') '%'])
     % following stop criteria only useful during simulations
   elseif ~(abs(ssqres - prevssqres) > precision)
@@ -1993,7 +1993,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%  Subfunction Linear search ALS   %%%%%%%%%%%%%%%%%
-function [newcomp,newssqres] = linsearch(datforQ,comp,prevcomp,smode,itt,prevssqres,ssqres,dispprefix,Dmode,holdparam)
+function [newcomp,newssqres] = linsearch(datforQ,comp,prevcomp,smode,iter,prevssqres,ssqres,dispprefix,Dmode,holdparam)
 %
 % This subfunction searches linearly for expected loading vectors
 % to 'skip' several iterations
@@ -2014,7 +2014,7 @@ paramaccind = ones(1,5);
 paramaccind(holdparam) = 0;
 
 % set delta and other things
-delta = itt ^ 1/3;
+delta = iter ^ 1/3;
 switch Dmode
   case 'identity'
     paramaccind(5) = 0;

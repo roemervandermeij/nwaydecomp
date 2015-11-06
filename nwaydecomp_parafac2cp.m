@@ -55,7 +55,7 @@ function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2cp(dat,nc
 % Additional options should be specified in key-value pairs and can be
 %   'compmodes'   = vector with length equal to ndims(dat) with 0 or 1
 %                   indicating whether component parameters should be complex or not (note, the incomplete mode cannot be real-valued for complex input)
-%   'nitt'        = maximum number of iterations (default = 2500)
+%   'niter'       = maximum number of iterations (default = 2500)
 %   'convcrit'    = convergence criterion (default = 1e-6)
 %   'startval'    = previously computed start-values
 %   'dispprefix'  = prefix added to all disp-calls, handy when function is used in many loops after each other
@@ -103,10 +103,10 @@ function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2cp(dat,nc
 
 
 % Get the optional input arguments
-keyvalcheck(varargin, 'optional', {'compmodes','specmodes','nitt','convcrit','startval','dispprefix','ssqdatnoncp'});
-% keyvalcheck(varargin, 'optional', {'compmodes','specmodes','nitt','convcrit','startval','dispprefix','datnoncp'});
+keyvalcheck(varargin, 'optional', {'compmodes','specmodes','niter','convcrit','startval','dispprefix','ssqdatnoncp'});
+% keyvalcheck(varargin, 'optional', {'compmodes','specmodes','niter','convcrit','startval','dispprefix','datnoncp'});
 compmodes   = keyval('compmodes', varargin);
-nitt        = keyval('nitt', varargin);        if isempty(nitt),         nitt         = 2500;                  end
+niter       = keyval('niter', varargin);       if isempty(niter),        niter        = 2500;                  end
 convcrit    = keyval('convcrit', varargin);    if isempty(convcrit),     convcrit     = 1e-6;                  end
 startval    = keyval('startval', varargin);
 dispprefix  = keyval('dispprefix', varargin);  if isempty(dispprefix),   dispprefix   = [];                    end
@@ -215,7 +215,7 @@ for imode = 2:nmode
 end
 disp([dispprefix 'data is complex array with dimensions ' dimstring])
 disp([dispprefix 'a PARAFAC2-model with ' num2str(ncomp) ' components will be estimated '])
-disp([dispprefix 'maximum number of iterations = ' num2str(nitt)])
+disp([dispprefix 'maximum number of iterations = ' num2str(niter)])
 disp([dispprefix 'convergence criterion = ' num2str(convcrit)])
 
 % concat real and imag parts of unfolded dats for real-valued minimization of real-valued modes
@@ -309,20 +309,20 @@ end
 ssqdat     = ssqdatnoncp;
 ssqres     = ssqdat;
 prevssqres = 2 * ssqres;
-itt        = 0;
+iter       = 0;
 
 
 % start main while loop of algorithm (updating component matrices)
 disp([dispprefix 'starting ALS algorithm using QR-based fit estimation'])
-while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) % needs eps failsafe
+while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) % needs eps failsafe
   
   
-  % Count itt
-  itt = itt + 1;
+  % Count iter
+  iter = iter + 1;
   
   % Set previous stuff
   prevssqres  = ssqres;
-  if itt>1
+  if iter>1
     prevP       = P;
     prevprevcomp = prevcomp;
   end
@@ -468,13 +468,13 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) % nee
   
   
   % Display results of current iteration
-  disp([dispprefix 'iteration ' num2str(itt) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel)])
+  disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel)])
   
   
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % Algorithm stops
   % calculate final explained variance, not based on QR-decomposition
-  %   if ~(abs((ssqres - prevssqres) / prevssqres) > convcrit) || (itt == nitt)
+  %   if ~(abs((ssqres - prevssqres) / prevssqres) > convcrit) || (iter == niter)
   %     P = cell(1,smodenoncp(estimmode));
   %     for iestimval = 1:smodenoncp(estimmode)
   %       % prepare dat
@@ -523,10 +523,10 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) % nee
   %     end
   %   end
   if ~(abs((ssqres - prevssqres) / prevssqres) > convcrit)
-    disp([dispprefix 'convergence criterion of ' num2str(convcrit) ' reached in ' num2str(itt) ' iterations'])
+    disp([dispprefix 'convergence criterion of ' num2str(convcrit) ' reached in ' num2str(iter) ' iterations'])
     disp([dispprefix 'explained variance by model: ' num2str(expvar,'%-2.1f') '%'])
-  elseif (itt == nitt)
-    disp([dispprefix 'maximum number of iterations = ' num2str(itt) ' reached'])
+  elseif (iter == niter)
+    disp([dispprefix 'maximum number of iterations = ' num2str(iter) ' reached'])
     disp([dispprefix 'explained variance by model: ' num2str(expvar,'%-2.1f') '%'])
   end
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

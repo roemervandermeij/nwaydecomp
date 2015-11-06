@@ -35,7 +35,7 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 % Additional options should be specified in key-value pairs and can be
 %   'compmodes'   = vector with length equal to ndims(dat) with 0 or 1
 %                   indicating whether component parameters should be complex or not
-%   'nitt'        = maximum number of iterations (default = 2500)
+%   'niter'       = maximum number of iterations (default = 2500)
 %   'convcrit'    = convergence criterion (default = 1e-6)
 %   'startval'    = previously computed start-values
 %   'dispprefix'  = prefix added to all disp-calls, handy when function is used in many loops after each other
@@ -78,9 +78,9 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 
 
 % Get the optional input arguments
-keyvalcheck(varargin, 'optional', {'compmodes','nitt','convcrit','startval','dispprefix','holdmodes'});
+keyvalcheck(varargin, 'optional', {'compmodes','niter','convcrit','startval','dispprefix','holdmodes'});
 compmodes   = keyval('compmodes', varargin);
-nitt        = keyval('nitt', varargin);        if isempty(nitt),         nitt         = 2500;                  end
+niter       = keyval('niter', varargin);       if isempty(niter),        niter        = 2500;                  end
 convcrit    = keyval('convcrit', varargin);    if isempty(convcrit),     convcrit     = 1e-6;                  end
 startval    = keyval('startval', varargin);
 dispprefix  = keyval('dispprefix', varargin);  if isempty(dispprefix),   dispprefix   = [];                    end
@@ -114,7 +114,7 @@ for imode = 2:nmode
 end
 disp([dispprefix 'data is complex array with dimensions ' dimstring])
 disp([dispprefix 'a PARAFAC-model with ' num2str(ncomp) ' components will be estimated '])
-disp([dispprefix 'maximum number of iterations = ' num2str(nitt)])
+disp([dispprefix 'maximum number of iterations = ' num2str(niter)])
 disp([dispprefix 'convergence criterion = ' num2str(convcrit)])
 
 % throw errors for real/complex input with complex/real component matrices
@@ -200,20 +200,20 @@ end
 ssqdat     = sum(sum(abs(datmain).^2));
 ssqres     = ssqdat;
 prevssqres = 2 * ssqres;
-itt        = 0;
+iter       = 0;
 
 
 % start main while loop of algorithm (updating component matrices)
 disp([dispprefix 'starting ALS algorithm using QR-based fit estimation'])
-while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (abs(ssqres) / ssqdat) > eps*1e3
+while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) &&  (abs(ssqres) / ssqdat) > eps*1e3
   
   
-  % Count itt
-  itt = itt + 1;
+  % Count iter
+  iter = iter + 1;
   
   % Perform linear search every 4 iterations if relative ssqres increase is smaller than 10% (from the perspective of the previous iteration)
-  if rem((itt-1),4) == 0 && ((prevssqres / ssqres) <= 1.05) && (((itt-1)^1/3) >= 2) && (itt < (nitt-2))
-    [comp] = linsearch(datmain,comp,prevcomp,itt-1,prevssqres,ssqres,dispprefix); % subfunction for performing linear search
+  if rem((iter-1),4) == 0 && ((prevssqres / ssqres) <= 1.05) && (((iter-1)^1/3) >= 2) && (iter < (niter-2))
+    [comp] = linsearch(datmain,comp,prevcomp,iter-1,prevssqres,ssqres,dispprefix); % subfunction for performing linear search
   end
   
   % Set previous stuff (important for linear search in next iteration)
@@ -300,13 +300,13 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (
   
   
   % Display results of current iteration
-  disp([dispprefix 'iteration ' num2str(itt) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel)])
+  disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel)])
   
   
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % Algorithm stops
   % calculate final explained variance, not based on QR-decomposition
-  if ~(abs((ssqres - prevssqres) / prevssqres) > convcrit) || (itt == nitt)
+  if ~(abs((ssqres - prevssqres) / prevssqres) > convcrit) || (iter == niter)
     model     = calcmodel(comp); % subfunction for calculating model
     ssqres    = sum(sum(abs(datmain - model).^2));
     qrexpvar  = expvar;
@@ -316,10 +316,10 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (itt < nitt) &&  (
     end
   end
   if ~(abs((ssqres - prevssqres) / prevssqres) > convcrit)
-    disp([dispprefix 'convergence criterion of ' num2str(convcrit) ' reached in ' num2str(itt) ' iterations'])
+    disp([dispprefix 'convergence criterion of ' num2str(convcrit) ' reached in ' num2str(iter) ' iterations'])
     disp([dispprefix 'explained variance by model: ' num2str(expvar,'%-2.1f') '%'])
-  elseif (itt == nitt)
-    disp([dispprefix 'maximum number of iterations = ' num2str(itt) ' reached'])
+  elseif (iter == niter)
+    disp([dispprefix 'maximum number of iterations = ' num2str(iter) ' reached'])
     disp([dispprefix 'explained variance by model: ' num2str(expvar,'%-2.1f') '%'])
   end
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -539,7 +539,7 @@ model = comp{1} * kr(comp(end:-1:2)).';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%  Subfunction Linear search ALS   %%%%%%%%%%%%%%%%%
-function [newcomp] = linsearch(dat,comp,prevcomp,itt,prevssqres,ssqres,dispprefix)
+function [newcomp] = linsearch(dat,comp,prevcomp,iter,prevssqres,ssqres,dispprefix)
 %
 % This subfunction searches linearly for expected loading vectors
 % to 'skip' several iterations
@@ -552,7 +552,7 @@ function [newcomp] = linsearch(dat,comp,prevcomp,itt,prevssqres,ssqres,dispprefi
 % This function is heavily inspired by the N-way toolbox (http://www.models.kvl.dk/source/nwaytoolbox)
 
 % set delta and other things
-delta = itt ^ 1/3;
+delta = iter ^ 1/3;
 nmode = length(comp);
 
 
