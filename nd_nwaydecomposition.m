@@ -82,6 +82,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.ncompestend          = maximum number of components to try to extract (default = 50) (used in splithalf/corcondiag)
 %   cfg.ncompeststep         = forward stepsize in ncomp estimation (default = 1) (backward is always 1; used in splithalf/corcondiag)
 %   cfg.ncompestshdatparam   = (for 'splithalf'): string containing field-name of partitioned data. Data should be kept in 1x2 cell-array, each partition in one cell
+%                              when using SPACE, one can also specify 'oddeven' as cfg.ncompestshdatparam. In this case the data will be partioned using odd/even trials/epochs
 %   cfg.ncompestshcritval    = (for 'splithalf'): 1Xnparam vector, critical value to use for selecting number of components using splif half (default = 0.7 for all)
 %   cfg.ncompestvarinc       = (for 'minexpvarinc'): minimal required increase in explained variance when increasing number of compononents by cfg.ncompeststep
 %   cfg.ncompestcorconval    = (for 'corcondiag'): minimum value of the core consistency diagnostic for increasing the number of components, between 0 and 1 (default is 0.7)
@@ -447,7 +448,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     % clear old dat 
     data.(cfg.datparam) = [];
   elseif strcmp(data.dimord,'chan_freq_epoch_tap')
-    % Handle output from custom code
+    % Handle output from custom code with dimensions 'chan_freq_epoch_tap'
     if ~isnumeric(data.(cfg.datparam))
       warning('not optimizing data because data is specified as')
     else
@@ -547,9 +548,21 @@ switch cfg.ncompest
   
   case 'splithalf'
     
-    % create random data partitionst
-    datpart1 = data.(cfg.ncompestshdatparam){1};
-    datpart2 = data.(cfg.ncompestshdatparam){2};
+    if strcmp(cfg.ncompestshdatparam,'oddeven')
+      if ~strcmp(model,'spacefsp') && ~strcmp(model,'spacetime')
+        error('cfg.ncompestshdatparam = ''oddeven'' is only supported for SPACE-time and SPACE-FSP. Please provide partioned data in a 1x2 cell-array and specify its field name in cfg.ncompestshdatparam')
+      end
+      if size(dat,3)==1
+        error('splithalf procedure is only suitable for when the number trials/epochs is bigger than 1')
+      end
+      % extract partitions
+      datpart1 = dat(:,:,1:2:size(dat,3),:);
+      datpart2 = dat(:,:,2:2:size(dat,3),:);
+    else
+      % extract partitions
+      datpart1 = data.(cfg.ncompestshdatparam){1};
+      datpart2 = data.(cfg.ncompestshdatparam){2};
+    end
     
     % perform splithalf component number estimate
     [ncomp, splithalfstat] = splithalf(model, datpart1, datpart2, nrandestcomp, estnum, estshcritval, nitt, convcrit, degencrit, distcomp, modelopt{:}); % subfunction
