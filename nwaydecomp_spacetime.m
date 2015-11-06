@@ -62,7 +62,9 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %
 %
 %  TO DO: precision should really be split up in tolerance and (sigma) precision, keeping in mind their dependence
+%  TO DO: precision conditions should be defined relative to the data, currently a workaround is implemented
 %  TO DO: merge some of the subfunctions of SPACE models into externals
+%  TO DO: the main stop conditions could be more principled wrt ssqres
 %
 %
 %
@@ -168,7 +170,22 @@ if smode(2) ~= numel(F)
   error('F has improper number of elements')
 end
 
-% prepare datforQ, and use cholesky decomp if applicable
+% workaround for precision coditions not being defined relative to the data
+% compute a running average of the exponent of the data
+datexpfac = 0;
+for ik = 1:smode(2)
+  for il = 1:smode(3)
+    % select dat
+    currdatQ = permute(dat(:,ik,il,:),[1 4 2 3]);
+    currdatQ(:,isnan(currdatQ(1,:))) = []; 
+    csd = currdatQ*currdatQ';
+    % get biggest negative exponent
+    datexpfac = datexpfac + (mean(log10(abs(csd(csd~=0)))) ./ prod(smode([2 3])));
+  end
+end
+datexpfac = min([floor(datexpfac) 0]);
+
+% prepare datforQ, and use eigdecomp if applicable
 datforQ    = cell(smode([2 3]));
 eigflg     = false;
 ssqdat     = 0;
@@ -199,6 +216,9 @@ for ik = 1:smode(2)
       % save as currdatQ
       currdatQ = eigweigth;
     end
+    
+    % apply workaround for precision
+    currdatQ = currdatQ ./ 10^datexpfac;
     
     % zero pad taper dimension
     if size(currdatQ,2)<ncomp
@@ -1148,6 +1168,10 @@ end
 if max(tuckcongr) >= degencrit
   disp([dispprefix 'Warning: some components are correlated above critical value, model might be degenerate'])
 end
+
+% apply precision work around to the scaling coefficients and ssqres
+scaling = scaling .*  10.^datexpfac;
+ssqres  = ssqres  .* (10.^datexpfac).^2; 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%   POSTPROCESSING END    %%%%%%%%%%%%%%%%%%%%%%%
