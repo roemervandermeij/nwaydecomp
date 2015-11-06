@@ -209,12 +209,10 @@ if isempty(cfg.datparam)
   error('you need to specify cfg.datparam')
 end
 
-
 % make a specific check for presence cfg.trials and cfg.channel
 if isfield(cfg,'trials') || isfield(cfg,'channel')
   error('cfg.trials and cfg.channel are not supported')
 end
-
 
 % Check the data provided and get dimensions of data for for error checking below (parse filename if data.(cfg.datparam) is not data)
 if ~isnumeric(data.(cfg.datparam))
@@ -288,6 +286,20 @@ if strcmp(cfg.ncompest,'splithalf')
 end
 
 
+% disp progress
+disp(['N-way decomposition using ' upper(cfg.model) ' will be performed on ''' cfg.datparam ''''])
+if ~isempty(cfg.ncompest)
+  disp(['number of components to extract will be determined using method ''' cfg.ncompest ''''])
+  disp([num2str(cfg.ncompestrandstart) ' random initializations will be used during component number estimation' ])
+  disp([num2str(cfg.randstart) ' random initializations will be used for the final decomposition' ])
+else
+  disp([num2st(cfg.ncomp) ' components will be extracted'])
+  disp([num2str(cfg.randstart) ' random initializations will be used ' ])
+end
+disp(['decompositions will stop once the convergence criterion of ' num2str(cfg.convcrit) ' has been reached, or after ' num2str(cfg.numiter) ' iterations' ])
+disp(['degeneracy criterion that will be used is a Tuckers congruence coefficient of ' num2str(cfg.degencrit)])
+
+
 % Model-specific errors
 % parafac2/parafac2cp
 if strncmp(cfg.model,'parafac2',8) && ndimsdat ~= numel(cfg.specialdims)
@@ -315,6 +327,8 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     if ~any(strcmp(cfg.datparam,{'fourierspctrm','crsspctrm'}))
       error('cfg.datparam should be either ''fourierspctrm'' or ''crsspctrm'' when input is output from ft_freqanalysis')
     end
+    % disp progress
+    disp(['input for SPACE is the output of ft_freqanalysis, reorganizing ' cfg.datparam ' to have dimensionality ''chan_freq_epoch_tap'''])
     if ~isnumeric(data.(cfg.datparam))
       error('specifying data field as filename is only possible with manually constructed chan_freq_epoch_tap')
     end
@@ -327,6 +341,9 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
       warning(['Your input resulted from ft_freqanalysis with method = mtmconvol. If you''re also using frequency-dependent window-lengths ' ... 
                'it is highly recommended to supply cfg.fsample, containing the sampling rate of the data in Hz, to correct for ' ...
                'frequency-dependent distortions of power'])
+    else
+      % disp progress
+      disp('applying correction for double scaling in ft_freqanalysis with method = mtmconvol')
     end
     % failsafe error for if this ever becomes supported in ft_freqananalysis (which it shouldn't)
     if strcmp(cfg.datparam,'fourierspctrm') && (strcmp(data.cfg.keeptrials,'no') || strcmp(data.cfg.keeptrials,'no'))
@@ -350,6 +367,8 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     if ~strncmp(data.dimord,'rpt',3)
       data.dimord = ['rpt_' data.dimord];
       data.(cfg.datparam) = permute(data.(cfg.datparam),[ndimsdat+1 1:ndimsdat]);
+      % disp progress
+      disp('input data no longer has trial dimension, adding singleton dimension')
     end
     % set
     ntrial = size(data.cumtapcnt,1);
@@ -445,11 +464,15 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     data.(cfg.datparam) = [];
   elseif strcmp(data.dimord,'chan_freq_epoch_tap')
     % Handle output from custom code with dimensions 'chan_freq_epoch_tap'
+    % disp progress
+    disp('input for SPACE is the result of custom code')
     if ~isnumeric(data.(cfg.datparam))
-      warning('not optimizing data because data is specified as')
+      warning('not optimizing data because data is specified as filename')
     else
       % only apply trick if ntaper exceeds nchan
       if size(data.(cfg.datparam),4)>size(data.(cfg.datparam),1)
+        % disp progress
+        disp('number of tapers exceeds number of channels, applying Eigendecomposition to reduce memory and computation time')
         nepoch = size(data.(cfg.datparam),3);
         nfreq  = size(data.(cfg.datparam),2);
         nchan  = size(data.(cfg.datparam),1);
@@ -551,6 +574,8 @@ switch cfg.ncompest
       if size(dat,3)==1
         error('splithalf procedure is only suitable for when the number trials/epochs is bigger than 1')
       end
+      %  disp progress
+      disp('creating split-half datasets using odd/even trial numbers')
       % extract partitions
       datpart1 = dat(:,:,1:2:size(dat,3),:);
       datpart2 = dat(:,:,2:2:size(dat,3),:);
