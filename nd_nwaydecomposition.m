@@ -376,7 +376,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
           % This scaling requires cfg.fsample to be given (... :( )
           if strcmp(data.cfg.method,'mtmconvol') && isfield(cfg,'fsample')
             % reconstruct tinwinsample
-            t_ftimwin     = ft_findcfg(out.cfg,'t_ftimwin');
+            t_ftimwin     = ft_findcfg(data.cfg,'t_ftimwin');
             timwinnsample = round(t_ftimwin(ifreq) .* cfg.fsample);
             % undo additional the scaling by sqrt(2./ timwinnsample)
             currfour      = currfour ./ sqrt(2 ./ timwinnsample); 
@@ -500,7 +500,7 @@ end
 
 
 % Set several easy to work with variables
-if ~exist(dat,'var')
+if ~exist('dat','var')
   dat         = data.(cfg.datparam);
 end
 model         = cfg.model;
