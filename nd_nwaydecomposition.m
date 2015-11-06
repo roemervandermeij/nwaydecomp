@@ -228,7 +228,7 @@ if ~isnumeric(data.(cfg.datparam))
   end
   ndimsdat = numel(filevars.size);
 else
-  if ~issingle(data.(cfg.datparam)) && ~isdouble(data.(cfg.datparam))
+  if ~isfloat(data.(cfg.datparam))
     error('field specified by cfg.datparam needs to contain a numeric single or double array')
   end
   ndimsdat = ndims(data.(cfg.datparam));
