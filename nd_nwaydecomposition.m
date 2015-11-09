@@ -82,7 +82,8 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.ncompestend          = maximum number of components to try to extract (default = 50) (used in splithalf/corcondiag)
 %   cfg.ncompeststep         = forward stepsize in ncomp estimation (default = 1) (backward is always 1; used in splithalf/corcondiag)
 %   cfg.ncompestshdatparam   = (for 'splithalf'): string containing field-name of partitioned data. Data should be kept in 1x2 cell-array, each partition in one cell
-%                              when using SPACE, one can also specify 'oddeven' as cfg.ncompestshdatparam. In this case the data will be partioned using odd/even trials/epochs
+%                              when using SPACE, one can also specify 'oddeven' or 'oddevenavg' as cfg.ncompestshdatparam. In this case the data will be partioned 
+%                              using odd/even trials/epochs, and the trial/epoch-specific CSDs averaged in the case of the later (Note: simply averaging the trials is insufficient)
 %   cfg.ncompestshcritval    = (for 'splithalf'): 1Xnparam vector, critical value to use for selecting number of components using splif half (default = 0.7 for all)
 %   cfg.ncompestvarinc       = (for 'minexpvarinc'): minimal required increase in explained variance when increasing number of compononents by cfg.ncompeststep
 %   cfg.ncompestcorconval    = (for 'corcondiag'): minimum value of the core consistency diagnostic for increasing the number of components, between 0 and 1 (default is 0.7)
@@ -567,18 +568,69 @@ switch cfg.ncompest
   
   case 'splithalf'
     
-    if strcmp(cfg.ncompestshdatparam,'oddeven')
+    if any(strcmp(cfg.ncompestshdatparam,{'oddeven','oddevenavg'}))
       if ~strcmp(model,'spacefsp') && ~strcmp(model,'spacetime')
-        error('cfg.ncompestshdatparam = ''oddeven'' is only supported for SPACE-time and SPACE-FSP. Please provide partioned data in a 1x2 cell-array and specify its field name in cfg.ncompestshdatparam')
+        error('cfg.ncompestshdatparam = ''oddeven/oddevenavg'' is only supported for SPACE-time and SPACE-FSP. Please provide partioned data in a 1x2 cell-array and specify its field name in cfg.ncompestshdatparam')
       end
       if size(dat,3)==1
-        error('splithalf procedure is only suitable for when the number trials/epochs is bigger than 1')
+        error('splithalf procedure with automatic segmentation is only suitable for when the provided number trials/epochs is bigger than 1')
       end
       %  disp progress
       disp('creating split-half datasets using odd/even trial numbers')
       % extract partitions
       datpart1 = dat(:,:,1:2:size(dat,3),:);
       datpart2 = dat(:,:,2:2:size(dat,3),:);
+      % avg the csds over epochs when requested
+      if strcmp(cfg.ncompestshdatparam,'oddevenavg')
+        disp('averaging over trial/epoch-specific CSDs')
+        tmpdatcmb = {datpart1,datpart2};
+        clear datpart1 datpart2
+        for ipart = 1:2
+          % averaging requires constructing average CSDs followed by eigdecomposition, just as above
+          nepoch = size(tmpdatcmb{ipart},3);
+          nfreq  = size(tmpdatcmb{ipart},2);
+          nchan  = size(tmpdatcmb{ipart},1);
+          ntaper = nchan;
+          dat    = complex(NaN(nchan,nfreq,1,ntaper),NaN(nchan,nfreq,1,ntaper));
+          % construct new dat
+          for ifreq = 1:nfreq
+            % construct running average of csd
+            csd = complex(zeros(nchan,nchan),zeros(nchan,nchan));
+            for iepoch = 1:nepoch
+              % first, select data and create csd
+              currfour = permute(tmpdatcmb{ipart}(:,ifreq,iepoch,:),[1 4 2 3]);
+              % get rid of NaNs (should always be the same over channels)
+              currfour(:,isnan(currfour(1,:))) = [];
+              % compute the csd
+              csd = csd + (currfour*currfour' ./ nepoch);
+            end
+            %%%%%%%%%
+            % Reduce SPACE memory load and computation time by replacing each chan_taper matrix by the
+            % Eigenvectors of its chan_chan cross-products weighted by sqrt(Eigenvalues).
+            % This is possible because (1) SPACE only uses the cross-products of the chan_taper matrices
+            % (i.e. the frequency- and trial-specific CSD) and (2) the Eigendecomposition of a symmetric
+            % matrix A is A = VLV'.
+            % As such, VL^.5 has the same cross-products as the original chan_taper matrix.
+            [V L] = eig(csd);
+            L     = diag(L);
+            tol   = max(size(csd))*eps(max(L)); % compute tol using matlabs default
+            zeroL = L<tol;
+            eigweigth = V(:,~zeroL)*diag(sqrt(L(~zeroL)));
+            % positive semi-definite failsafe
+            if any(L<-tol) || any(~isreal(L))
+              error('csd not positive semidefinite')
+            end
+            %%%%%%%%%
+            % save in dat
+            currm = size(eigweigth,2);
+            dat(:,ifreq,1,1:currm) = eigweigth;
+          end
+          tmpdatcmb{ipart} = dat;
+        end
+        datpart1 = tmpdatcmb{1};
+        datpart2 = tmpdatcmb{2};
+        clear tmpdatcmb
+      end
     else
       % extract partitions
       datpart1 = data.(cfg.ncompestshdatparam){1};
