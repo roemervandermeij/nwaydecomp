@@ -229,7 +229,8 @@ else
   if ~isfloat(data.(cfg.datparam))
     error('field specified by cfg.datparam needs to contain a numeric single or double array')
   end
-  ndimsdat = ndims(data.(cfg.datparam));
+  ndimsdat     = ndims(data.(cfg.datparam));
+  datprecision = class(data.(cfg.datparam));
 end
 
 % Make sure a dimord is present (in case one uses this outside of FT)
@@ -375,7 +376,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     nfreq  = size(data.cumtapcnt,2);
     nchan  = numel(data.label);
     ntaper = nchan; 
-    dat    = complex(NaN(nchan,nfreq,ntrial,ntaper),NaN(nchan,nfreq,ntrial,ntaper));
+    dat    = complex(NaN(nchan,nfreq,ntrial,ntaper,datprecision),NaN(nchan,nfreq,ntrial,ntaper,datprecision));
     tapcnt = data.cumtapcnt(:,1); % explicitly only use ntap of first freq due to above 
     % construct new dat
     for itrial = 1:ntrial
@@ -387,6 +388,8 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
           currfour = currfour(:,:); % this unfolds the dimensions other than chan, will work regardless of time dim presence/absence
           % get rid of NaNs (should always be the same over channels)
           currfour(:,isnan(currfour(1,:))) = [];
+          % ensure double precision for calculations below
+          currfour = double(currfour);
           %%%%%%
           % UNDO double scaling in ft_specest_mtmconvol
           % There is currently a double scaling applied in ft_specest_mtmconvol. This will likely not hurt other analyses,
@@ -412,6 +415,8 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
           currcsd = permute(data.(cfg.datparam)(itrial,:,:,ifreq,:),[2 3 5 1 4]); % will work regardless of time dim presence/absence
           % get rid of NaNs (should always be the same over channel-pairs)
           currcsd(:,:,isnan(squeeze(currcsd(1,1,:)))) = [];
+          % ensure double precision for calculations below
+          currcsd = double(currcsd);
           %%%%%%
           % UNDO double scaling in ft_specest_mtmconvol
           % There is currently a double scaling applied in ft_specest_mtmconvol. This will likely not hurt other analyses,
@@ -477,7 +482,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
         nfreq  = size(data.(cfg.datparam),2);
         nchan  = size(data.(cfg.datparam),1);
         ntaper = nchan;
-        dat    = complex(NaN(nchan,nfreq,nepoch,ntaper),NaN(nchan,nfreq,nepoch,ntaper));
+        dat    = complex(NaN(nchan,nfreq,nepoch,ntaper,datprecision),NaN(nchan,nfreq,nepoch,ntaper,datprecision));
         % construct new dat
         for iepoch = 1:nepoch
           for ifreq = 1:nfreq
@@ -485,6 +490,8 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
             currfour = permute(data.(cfg.datparam)(:,ifreq,iepoch,:),[1 4 2 3]); 
             % get rid of NaNs (should always be the same over channels)
             currfour(:,isnan(currfour(1,:))) = [];
+            % ensure double precision for calculations below
+            currfour = double(currfour);
             % compute the csd
             csd = currfour*currfour';
             %%%%%%%%%
