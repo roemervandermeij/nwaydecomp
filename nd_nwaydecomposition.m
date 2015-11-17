@@ -1893,7 +1893,7 @@ if ~isempty(distcomp.system)
       error('model not yet supported in automatic random starting')
   end
   % delete temporary copy of data if it was created
-  if ~isempty(distcomp.inputpathprefix) && ischar(distcomp.inputpathprefix) && strcmp(distcomp.system,'p2p')
+  if ~isempty(distcomp.inputpathprefix) && ischar(distcomp.inputpathprefix)
     delete(filename)
   end
   
