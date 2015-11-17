@@ -131,6 +131,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % cfg.distcomp.system          = 'p2p' or 'torque', distributed computing for random starts (default = [])
 % cfg.distcomp.timereq         = scalar, maximum time requirement in seconds of a random start (default = 60*60*24*3 (3 days))
 % cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is autmatically determined)
+% cfg.distcomp.matlabcmd       = NEED TO ADD string, command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab')
 % cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))
 % cfg.distcomp.inputpathprefix = saves input data with a random name in specified path
 % 
@@ -1852,7 +1853,7 @@ if ~isempty(distcomp.system)
       else
         batchqueue = 'batch';
       end
-      distcompopt = {'backend','torque','queue',batchqueue,'timreq', distcomp.timreq,'matlabcmd','/opt/matlab-R2012b/bin/matlab','options','-V'};
+      distcompopt = {'backend','torque','queue',batchqueue,'timreq', distcomp.timreq,'matlabcmd','/usr/local/MATLAB/R2012b/bin/matlab -singleCompThread','options','-V'};
       distcompfun = @qsubcellfun;
     otherwise
       error('distributed computing system not supported')
