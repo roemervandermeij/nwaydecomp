@@ -160,7 +160,7 @@ ft_defaults
 ft_preamble init
 ft_preamble provenance
 ft_preamble trackconfig
-ft_preamble debug
+%ft_preamble debug % ft_preamble_debug currently lead to qsubfeval saving a copy of the input data
 ft_preamble loadvar data 
 
 % Set defaults
@@ -805,7 +805,7 @@ nwaycomp = copyfields(data, nwaycomp, fieldnames);
 
 
 % do the general cleanup and bookkeeping at the end of the function
-ft_postamble debug
+%ft_postamble debug % ft_preamble_debug currently lead to qsubfeval saving a copy of the input data
 ft_postamble trackconfig
 ft_postamble provenance
 ft_postamble previous data
