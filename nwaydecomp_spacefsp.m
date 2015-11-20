@@ -56,17 +56,6 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %   'holdparam'    = 1x5 vector of 0s and 1s indicating whether certain parameter sets are not updated in each ALS-iteration
 %
 %
-%
-%
-%
-%  TO DO: precision should really be split up in tolerance and (lambda) precision, keeping in mind their dependence
-%  TO DO: precision conditions should be defined relative to the data, currently a workaround is implemented
-%  TO DO: merge some of the subfunctions of SPACE models into externals
-%  TO DO: the main stop conditions could be more principled wrt ssqres
-%
-%
-%
-%
 
 %
 % Copyright (C) 2012-2015, Roemer van der Meij, roemervandermeij AT gmail DOT com
@@ -86,7 +75,11 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %    You should have received a copy of the GNU General Public License
 %    along with Nwaydecomp. If not, see <http://www.gnu.org/licenses/>.
 
-
+%  TO DO: precision should really be split up in tolerance and (lambda) precision, keeping in mind their dependence
+%  TO DO: precision conditions should be defined relative to the data, currently a workaround is implemented
+%  TO DO: merge some of the subfunctions of SPACE models into externals
+%  TO DO: the main stop conditions could be more principled wrt ssqres
+%  TO DO: adjust the model formulation so conj(dat) is no longer necessary
 
 
 % Get the optional input arguments
@@ -192,7 +185,7 @@ for ik = 1:smode(2)
       % Reduce memory load and computation time by replacing each chan_tap matrix by the
       % Eigenvectors of its chan_chan cross-products weighted by sqrt(Eigenvalues).
       % This is possible because (1) SPACE only uses the cross-products of the chan_taper matrices
-      % (i.e. currthe frequency- and trial-specific CSD) and (2) the Eigendecomposition of a symmetric
+      % (i.e. the frequency- and trial-specific CSD) and (2) the Eigendecomposition of a symmetric
       % matrix A is A = VLV'.
       % As such, VL^.5 has the same cross-products as the original chan_tap matrix.
       currdatQ  = double(currdatQ); % ensure double precision
@@ -217,6 +210,10 @@ for ik = 1:smode(2)
       currdatQ = cat(2,currdatQ, zeros(size(currdatQ,1),ncomp-size(currdatQ,2)));
     end
         
+    % take explicit conjugate, because the model is currently for csd'
+    % this can be formulated for space-time as: the model expresses time-delays in a column vector (the shortest summary possible of a complicated story)
+    currdatQ = conj(currdatQ);
+           
     % save currdatforQ
     datforQ{ik,il} = currdatQ;
     % calc ssqdat as running sum
