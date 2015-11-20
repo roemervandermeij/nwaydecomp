@@ -167,7 +167,7 @@ for ik = 1:smode(2)
     datexpfac = datexpfac + (mean(log10(abs(csd(csd~=0)))) ./ prod(smode([2 3])));
   end
 end
-datexpfac = min([floor(datexpfac) 0]);
+datexpfac = min([floor(datexpfac./2) 0]);
 
 % prepare datforQ, and use eigdecomp if applicable
 datforQ    = cell(smode([2 3]));
