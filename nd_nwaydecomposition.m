@@ -128,12 +128,13 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 
 %  Undocumented options:
 % (experimental)
-% cfg.distcomp.system          = 'p2p' or 'torque', distributed computing for random starts (default = [])
+% cfg.distcomp.system          = 'torque' or 'p2p', distributed computing for random starts (default = [])
 % cfg.distcomp.timereq         = scalar, maximum time requirement in seconds of a random start (default = 60*60*24*3 (3 days))
-% cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is autmatically determined)
-% cfg.distcomp.matlabcmd       = NEED TO ADD string, command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab')
-% cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))
-% cfg.distcomp.inputpathprefix = saves input data with a random name in specified path
+% cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is computed)
+% cfg.distcomp.inputsaveprefix = string, path/filename prefix for temporarily saving input data with a random name (default, saving is determined by the queue system)
+% cfg.distcomp.matlabcmd       = string, command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab') (default = 'matlab') (for torque)
+% cfg.distcomp.torquequeue     = string, name of queue to submit to (default = 'batch') (for torque)
+% cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))  (for p2p)
 % 
 %
 
@@ -190,8 +191,10 @@ cfg.distcomp                  = ft_getopt(cfg, 'distcomp',                    []
 cfg.distcomp.system           = ft_getopt(cfg.distcomp, 'system',             []);
 cfg.distcomp.memreq           = ft_getopt(cfg.distcomp, 'memreq',             []);
 cfg.distcomp.timreq           = ft_getopt(cfg.distcomp, 'timreq',             60*60*24*3);
+cfg.distcomp.inputsaveprefix  = ft_getopt(cfg.distcomp, 'inputsaveprefix',    []); % i.e. current dir
+cfg.distcomp.matlabcmd        = ft_getopt(cfg.distcomp, 'matlabcmd',          'matlab'); % i.e. current dir
+cfg.distcomp.torquequeue      = ft_getopt(cfg.distcomp, 'torquequeue',        'batch'); 
 cfg.distcomp.p2presubdel      = ft_getopt(cfg.distcomp, 'p2presubdel',        60*60*24*3);
-cfg.distcomp.inputpathprefix  = ft_getopt(cfg.distcomp, 'inputpathprefix',    []);
 if ~isempty(cfg.distcomp.system) && ~strcmp(getenv('USER'),'roevdmei')
   error('distributed computing implementation of random starting is highly experimental, disable error at own risk')
 end
@@ -1814,11 +1817,11 @@ if ~isempty(distcomp.system)
   celldispprefixval = repmat({[dispprefix 'random start: ']},[nrand 1]);
   % create a cell-array containing copys of the data, or save and pass temporary filename 
   % implemented for all models (file is deleted below)
-  if isnumeric(dat) && ~isempty(distcomp.inputpathprefix) && ischar(distcomp.inputpathprefix)
+  if isnumeric(dat) && ~isempty(distcomp.inputsaveprefix) && ischar(distcomp.inputsaveprefix)
     % make a random file name
     rng(sum(clock.*1e6))
     randname = tempname;
-    filename = [distcomp.inputpathprefix randname(end-6:end) '.mat'];
+    filename = [distcomp.inputsaveprefix 'nwaytemp_' randname(end-6:end) '.mat'];
     % put in cell-array input
     celldat  = repmat({filename},[nrand 1]);
     % save data
@@ -1848,12 +1851,7 @@ if ~isempty(distcomp.system)
     case 'torque'
       % increment timreq (should really be done based on size of data)
       distcomp.timreq = distcomp.timreq * ceil(ncomp/10);
-      if distcomp.timreq > (60*60*24*2.9)
-        batchqueue = 'batchext';
-      else
-        batchqueue = 'batch';
-      end
-      distcompopt = {'backend','torque','queue',batchqueue,'timreq', distcomp.timreq,'matlabcmd','/usr/local/MATLAB/R2012b/bin/matlab -singleCompThread','options','-V'};
+      distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'options','-V'};
       distcompfun = @qsubcellfun;
     otherwise
       error('distributed computing system not supported')
@@ -1893,7 +1891,7 @@ if ~isempty(distcomp.system)
       error('model not yet supported in automatic random starting')
   end
   % delete temporary copy of data if it was created
-  if ~isempty(distcomp.inputpathprefix) && ischar(distcomp.inputpathprefix)
+  if ~isempty(distcomp.inputsaveprefix) && ischar(distcomp.inputsaveprefix)
     delete(filename)
   end
   
