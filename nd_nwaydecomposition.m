@@ -1000,7 +1000,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
     case 'spacefsp'
       [estcomp,dum,dum,dum,dum,dum,t3core] = feval(['nwaydecomp_' model], dat, incomp, 'Dmode', Dmode, 'startval', startval, opt{:});
     otherwise
-      error('model not yet supported in corecondiag component number estimation')
+      error('model not yet supported in corcondiag component number estimation')
   end
   
   % create identity array and compute core consistency diagnostic
