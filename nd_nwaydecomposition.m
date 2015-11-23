@@ -538,7 +538,7 @@ if ~exist('dat','var')
   dat         = data.(cfg.datparam);
 end
 model         = cfg.model;
-niter          = cfg.numiter;
+niter         = cfg.numiter;
 convcrit      = cfg.convcrit;
 degencrit     = cfg.degencrit;
 ncomp         = cfg.ncomp;
@@ -1314,36 +1314,42 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   startval1 = startval1(1:nondegennrand);
   startval2 = startval2(1:nondegennrand);
   
+  % It used to be the case that the there were different nrand for random starts and final, and
+  % the split-half is now computed between all random start outcomes. Keeping this code in case of switching back
   % get final decompositions for current incomp
   estcomp = cell(1,2);
   estcomp{1} = cell(1,nondegennrand);
   estcomp{2} = cell(1,nondegennrand);
-  % set niter to a small number in case the solution in random starts has not converged yet (which will cause the below to last very long)
-  fniter = 10; % FIXME: this isn't really necessary, here because of historical reasons
-  % set up general options
-  optsh1 = {'niter', fniter, 'convcrit', convcrit, 'dispprefix',['split-half part 1 ncomp = ' num2str(incomp) ': ']};
-  optsh2 = {'niter', fniter, 'convcrit', convcrit, 'dispprefix',['split-half part 2 ncomp = ' num2str(incomp) ': ']};
   for inondegenrand = 1:nondegennrand
-    switch model
-      case 'parafac'
-        [estcomp{1}{inondegenrand},dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:});
-        [estcomp{2}{inondegenrand},dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:});
-      case 'parafac2'
-        [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, specmodes, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:});
-        [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, specmodes, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:});
-      case 'parafac2cp'
-        [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, specmodes, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:}, 'ssqdatnoncp', ssqdatnoncppart1);
-        [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, specmodes, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:}, 'ssqdatnoncp', ssqdatnoncppart2);
-      case 'spacetime'
-        [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, freq, 'Dmode', Dmode, 'startval', startval1{inondegenrand}, optsh1{:});
-        [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, freq, 'Dmode', Dmode, 'startval', startval2{inondegenrand}, optsh2{:});
-      case 'spacefsp'
-        [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'Dmode', Dmode, 'startval', startval1{inondegenrand}, optsh1{:});
-        [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, 'Dmode', Dmode, 'startval', startval2{inondegenrand}, optsh2{:});
-      otherwise
-        error('model not yet supported in split-half component number estimation')
-    end
+    estcomp{1}{inondegenrand} = startval1{inondegenrand};
+    estcomp{2}{inondegenrand} = startval2{inondegenrand};
   end
+  %   % set niter to a small number in case the solution in random starts has not converged yet (which will cause the below to last very long)
+  %   fniter = 10; %
+  %   % set up general options
+  %   optsh1 = {'niter', fniter, 'convcrit', convcrit, 'dispprefix',['split-half part 1 ncomp = ' num2str(incomp) ': ']};
+  %   optsh2 = {'niter', fniter, 'convcrit', convcrit, 'dispprefix',['split-half part 2 ncomp = ' num2str(incomp) ': ']};
+  %   for inondegenrand = 1:nondegennrand
+  %     switch model
+  %       case 'parafac'
+  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:});
+  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:});
+  %       case 'parafac2'
+  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, specmodes, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:});
+  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, specmodes, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:});
+  %       case 'parafac2cp'
+  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, specmodes, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:}, 'ssqdatnoncp', ssqdatnoncppart1);
+  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, specmodes, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:}, 'ssqdatnoncp', ssqdatnoncppart2);
+  %       case 'spacetime'
+  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, freq, 'Dmode', Dmode, 'startval', startval1{inondegenrand}, optsh1{:});
+  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, freq, 'Dmode', Dmode, 'startval', startval2{inondegenrand}, optsh2{:});
+  %       case 'spacefsp'
+  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'Dmode', Dmode, 'startval', startval1{inondegenrand}, optsh1{:});
+  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, 'Dmode', Dmode, 'startval', startval2{inondegenrand}, optsh2{:});
+  %       otherwise
+  %         error('model not yet supported in split-half component number estimation')
+  %     end
+  %   end
   
   % compute splithalf coeffcients for all possible pairs of random starts from the splithalves
   partcombcompsh = cell(nondegennrand,nondegennrand);
