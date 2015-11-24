@@ -1314,9 +1314,8 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   startval1 = startval1(1:nondegennrand);
   startval2 = startval2(1:nondegennrand);
   
-  % It used to be the case that the there were different nrand for random starts and final, and
-  % the split-half is now computed between all random start outcomes. Keeping this code in case of switching back
-  % get final decompositions for current incomp
+  % It used to be the case that the splithalf coefficients were computed only for the 'final' decomposition, instead of using all random starts
+  % Keeping the code hacked code below in case of switching back
   estcomp = cell(1,2);
   estcomp{1} = cell(1,nondegennrand);
   estcomp{2} = cell(1,nondegennrand);
