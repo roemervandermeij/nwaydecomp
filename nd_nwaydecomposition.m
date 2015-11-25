@@ -1376,7 +1376,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
                 compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
               case 'spacetime'
                 switch iparam
-                  case {1,2,3}
+                  case {1,2}
                     paramc1 = currestcomp{1}{iparam}(:,icompsh1);
                     paramc2 = currestcomp{2}{iparam}(:,icompsh2);
                     % normalize
@@ -1384,6 +1384,18 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
                     paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
                     % put in compsh
                     compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
+                  case 3
+                    paramc1 = currestcomp{1}{iparam}(:,icompsh1);
+                    paramc2 = currestcomp{2}{iparam}(:,icompsh2);
+                    % normalize
+                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                    % put in compsh
+                    if numel(paramc1) == numel(paramc2)
+                      compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
+                    else
+                      compcongr(icompsh1,icompsh2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
+                    end
                   case 4
                     % create frequency specific phases weighted by spatial maps and frequency profiles
                     A1 = currestcomp{1}{1}(:,icompsh1);
@@ -1433,9 +1445,9 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
                         compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
                     end
                 end
-              case'spacefsp'
+              case 'spacefsp'
                 switch iparam
-                  case {1,2,3}
+                  case {1,2}
                     paramc1 = currestcomp{1}{iparam}(:,icompsh1);
                     paramc2 = currestcomp{2}{iparam}(:,icompsh2);
                     % normalize
@@ -1443,6 +1455,18 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
                     paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
                     % put in compsh
                     compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
+                  case 3
+                    paramc1 = currestcomp{1}{iparam}(:,icompsh1);
+                    paramc2 = currestcomp{2}{iparam}(:,icompsh2);
+                    % normalize
+                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                    % put in compsh
+                    if numel(paramc1) == numel(paramc2)
+                      compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
+                    else
+                      compcongr(icompsh1,icompsh2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
+                    end
                   case 4
                     % create frequency specific phases weighted by spatial maps and frequency profiles
                     A1 = currestcomp{1}{1}(:,icompsh1);
