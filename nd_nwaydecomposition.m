@@ -2135,13 +2135,21 @@ else
   congrglobmin = [];
 end
 
+% compute cumulative component congruence, between the first random start, the first two, the first three, etc
+% this is done using non-denegerate initializations only
+congrcumul = zeros(numel(initindex),ncomp,nparam); 
+for iset = 1:numel(initindex)
+  ind = initindex(1:iset);
+  congrcumul(iset,:,:) = squeeze(nanmean(nanmean(congrallrp(ind,ind,:,:),1),2));
+end
 
 % put together randomstat
 randomstat.expvar         = randexpvar;
 randomstat.error          = randssqres;
-randomstat.congrall       = congrall;
 randomstat.globmininit    = globmininit;
+randomstat.congrall       = congrall;
 randomstat.congrglobmin   = congrglobmin;
+randomstat.congrcumul     = congrcumul;
 randomstat.tuckcongr      = randtuckcongr;
 randomstat.degeninit      = degeninit;
 randomstat.scaling        = randscaling;
