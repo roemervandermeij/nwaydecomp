@@ -1990,75 +1990,232 @@ else
   initindex = [];
 end
 
-%
-% FIXME: NO MODEL SPECIFIC COEFFICIENTS HERE YET!!!!
-%
-% create congruence coeficient over ALL initializations (including possible degenerate ones)
-% calculate per component per param the abs(inner product)
-nparam = numel(randcomp{1});
-congrall = NaN(ncomp,nparam);
-for icomp = 1:ncomp
-  for iparam = 1:nparam
-    try % FIX the above, until then, it is more important the code runs through
-      randmat = [];
-      for irand = 1:nrand
-        tmpcomp = randcomp{irand}{iparam};
-        if ndims(tmpcomp)==3 || (ndims(tmpcomp)==2 && size(tmpcomp,2)~=ncomp)
-          tmpcomp = tmpcomp(:,:,icomp);
-          tmpcomp = reshape(permute(tmpcomp,[1 3 2]),[size(tmpcomp,1)*size(tmpcomp,2) size(tmpcomp,3)]);
-        else
-          tmpcomp = tmpcomp(:,icomp);
+% prepare for computing congruence between random initializations
+% compute congruence coeffcients for all possible pairs of components from between all possible random starts
+% using all possible pairs is necessary, because the order of components might not be exactly similar over random starts
+% (this is the case when some components have nearly equal 'strength')
+% computing between all possible random starts is not necessary, but done out of convenience
+nparam     = numel(randcomp{1});
+congrallrp = zeros(nrand,nrand,ncomp,nparam);
+for irand1 = 1:nrand
+  for irand2 = 1:nrand
+    if irand1 == irand2
+      % set congr to NaN when computing congr between the same initializations (to avoid contaminating the average later)
+      congrallrp(irand1,irand2,:,:) = NaN(ncomp,nparam);
+    else
+      % set current estcomp
+      currcomp = cell(1,2);
+      currcomp{1} = randcomp{irand1};
+      currcomp{2} = randcomp{irand2};
+      % compute component congruence for all possible pairs between selected rands
+      compcongr = zeros(ncomp,ncomp,length(currcomp{1}));
+      for icompr1 = 1:ncomp
+        for icompr2 = 1:ncomp
+          for iparam = 1:nparam
+            % perform model specific stuff
+            switch model
+              case {'parafac','parafac2','parafac2cp'}
+                paramc1 = currcomp{1}{iparam}(:,icompr1);
+                paramc2 = currcomp{2}{iparam}(:,icompr2);
+                % normalize
+                paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                % put in compsh
+                compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
+              case 'spacetime'
+                switch iparam
+                  case {1,2}
+                    paramc1 = currcomp{1}{iparam}(:,icompr1);
+                    paramc2 = currcomp{2}{iparam}(:,icompr2);
+                    % normalize
+                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                    % put in compsh
+                    compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
+                  case 3
+                    paramc1 = currcomp{1}{iparam}(:,icompr1);
+                    paramc2 = currcomp{2}{iparam}(:,icompr2);
+                    % normalize
+                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                    % put in compsh
+                    if numel(paramc1) == numel(paramc2)
+                      compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
+                    else
+                      compcongr(icompr1,icompr2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
+                    end
+                  case 4
+                    % create frequency specific phases weighted by spatial maps and frequency profiles
+                    A1 = currcomp{1}{1}(:,icompr1);
+                    A2 = currcomp{2}{1}(:,icompr2);
+                    B1 = currcomp{1}{2}(:,icompr1);
+                    B2 = currcomp{2}{2}(:,icompr2);
+                    S1 = currcomp{1}{4}(:,icompr1);
+                    S2 = currcomp{2}{4}(:,icompr2);
+                    % construct complex site by freq matrix
+                    Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
+                    Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
+                    % scale with A
+                    Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
+                    Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
+                    % compute congruence over freqs, than abs, then average weighted with B
+                    shoverfreq = zeros(numel(B1),1);
+                    for ifreq = 1:numel(B1)
+                      currS1 = Scomp1(:,ifreq);
+                      currS2 = Scomp2(:,ifreq);
+                      currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
+                      currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
+                      shoverfreq(ifreq) = abs(currS1'*currS2);
+                    end
+                    shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                    % put in compsh
+                    compcongr(icompr1,icompr2,iparam) = shsumfreq;
+                  case 5
+                    switch Dmode
+                      case 'identity'
+                        % D is fixed with arbitrary order, make its congruence coefficient irrelevant
+                        compcongr(icompr1,icompr2,iparam) = 1;
+                      case 'kdepcomplex'
+                        % scale with B
+                        B1 = currcomp{1}{2}(:,icompr1);
+                        B2 = currcomp{2}{2}(:,icompr2);
+                        D1 = currcomp{1}{5}(:,:,icompr1);
+                        D2 = currcomp{2}{5}(:,:,icompr2);
+                        D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
+                        D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
+                        % vectorize
+                        paramc1 = D1(:);
+                        paramc2 = D2(:);
+                        % normalize
+                        paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                        paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                        % put in compsh
+                        compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
+                    end
+                end
+              case 'spacefsp'
+                switch iparam
+                  case {1,2}
+                    paramc1 = currcomp{1}{iparam}(:,icompr1);
+                    paramc2 = currcomp{2}{iparam}(:,icompr2);
+                    % normalize
+                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                    % put in compsh
+                    compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
+                  case 3
+                    paramc1 = currcomp{1}{iparam}(:,icompr1);
+                    paramc2 = currcomp{2}{iparam}(:,icompr2);
+                    % normalize
+                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                    % put in compsh
+                    if numel(paramc1) == numel(paramc2)
+                      compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
+                    else
+                      compcongr(icompr1,icompr2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
+                    end
+                  case 4
+                    % create frequency specific phases weighted by spatial maps and frequency profiles
+                    A1 = currcomp{1}{1}(:,icompr1);
+                    A2 = currcomp{2}{1}(:,icompr2);
+                    B1 = currcomp{1}{2}(:,icompr1);
+                    B2 = currcomp{2}{2}(:,icompr2);
+                    L1 = currcomp{1}{4}(:,:,icompr1);
+                    L2 = currcomp{2}{4}(:,:,icompr2);
+                    % construct complex site by freq matrix
+                    Lcomp1 = exp(1i*2*pi*L1);
+                    Lcomp2 = exp(1i*2*pi*L2);
+                    % scale with A
+                    Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
+                    Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
+                    % compute congruence over freqs, than abs, then average weighted with B
+                    shoverfreq = zeros(numel(B1),1);
+                    for ifreq = 1:numel(B1)
+                      currL1 = Lcomp1(:,ifreq);
+                      currL2 = Lcomp2(:,ifreq);
+                      currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
+                      currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
+                      shoverfreq(ifreq) = abs(currL1'*currL2);
+                    end
+                    shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                    % put in compsh
+                    compcongr(icompr1,icompr2,iparam) = shsumfreq;
+                  case 5
+                    switch Dmode
+                      case 'identity'
+                        % D is fixed with arbitrary order, make its congruence coefficient irrelevant
+                        compcongr(icompr1,icompr2,iparam) = 1;
+                      case 'kdepcomplex'
+                        % scale with B
+                        B1 = currcomp{1}{2}(:,icompr1);
+                        B2 = currcomp{2}{2}(:,icompr2);
+                        D1 = currcomp{1}{5}(:,:,icompr1);
+                        D2 = currcomp{2}{5}(:,:,icompr2);
+                        D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
+                        D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
+                        % vectorize
+                        paramc1 = D1(:);
+                        paramc2 = D2(:);
+                        % normalize
+                        paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                        paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                        % put in compsh
+                        compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
+                    end
+                end
+            end
+          end
         end
-        tmpcomp = tmpcomp ./ sqrt(sum(abs(tmpcomp).^2));
-        randmat(irand,:) = tmpcomp;
       end
-      % take the inner-product, because of cauchy-schartz this goes from 0 -> 1 (norms are already 1)
-      congr = randmat * randmat';
-      % remove diagonal and put mean abs in congruence
-      congr(eye(size(congr))==1) = [];
-      congrall(icomp,iparam) = mean(abs(congr));
+      % get cong coefficients by selecting most-similair unique pairings
+      compcongrsel = zeros(ncomp,nparam);
+      congrsum     = sum(compcongr,3);
+      % match from perspective of first rand (i.e. find components of rand 2 that match those of rand 1)
+      % do so by starting from the component-pair with the highest similarity, then the next most similar, etc.
+      r1ind   = zeros(1,ncomp);
+      r2ind   = zeros(1,ncomp);
+      for icomp = 1:ncomp
+        [dum, r1ind(icomp)] = max(max(congrsum,[],2));
+        [dum, r2ind(icomp)] = max(congrsum(r1ind(icomp),:));
+        congrsum(r1ind(icomp),:) = 0;
+        congrsum(:,r2ind(icomp)) = 0;
+      end
+      % sanity check
+      if any(diff(sort(r1ind))==0) || any(diff(sort(r2ind))==0)
+        error('some components were selected multiple times')
+      end
+      % sort for convenience
+      [r1ind, sortind] = sort(r1ind);
+      r2ind = r2ind(sortind);
+      for iparam = 1:nparam
+        compcongrsel(:,iparam) = diag(compcongr(r1ind,r2ind,iparam));
+      end
+      % save compsh
+      congrallrp(irand1,irand2,:,:) = compcongrsel;
     end
-  end
-end
+  end % irand2
+end % irand1
 
-%
-% FIXME: NO MODEL SPECIFIC COEFFICIENTS HERE YET!!!!
-%
-% create congruence coeficient over SELECTION of initializations, disregarding those that might be degenerate and those not thought to be at the global minimum
+% get congruence coeficient over ALL initializations (including possible degenerate ones)
+congrall = squeeze(nanmean(nanmean(congrallrp,1),2));
+
+
+% get congruence coeficient over SELECTION of initializations, disregarding those that might be degenerate and those not thought to be at the global minimum
 % select which initilizations to calculate congruence over
 if ~isempty(initindex)
   nanexpvar = randexpvar; % create a randexpvar vector with NaNs for degenerate initializations
   nanexpvar(degeninit) = NaN;
   expvarchange = abs(nanexpvar - nanexpvar(initindex(1)));
-  randindex    = find((expvarchange < .1) & (maxtg < degencrit)); % criterion means initializations are included if they differ less than 0.1% in expvar to the first (sorted) non-degenerate expvar
+  globmininit  = find((expvarchange < .1) & (maxtg < degencrit)); % criterion means initializations are included if they differ less than 0.1% in expvar to the first (sorted) non-degenerate expvar
   % calculate per component per param the abs(inner product) (if only degenerate solutions are found than matrix will contain only NaNs)
-  congrglobmin = NaN(ncomp,nparam);
-  for icomp = 1:ncomp
-    for iparam = 1:nparam
-      try % FIXME fix the above, until then, it is more important the code runs through
-        %randmat = zeros(length(randindex),size(randcomp{1}{iparam},1));
-        randmat = [];
-        for irand = 1:length(randindex)
-          tmpcomp = randcomp{randindex(irand)}{iparam};
-          if ndims(tmpcomp)==3 || (ndims(tmpcomp)==2 && size(tmpcomp,2)~=ncomp)
-            tmpcomp = tmpcomp(:,:,icomp);
-            tmpcomp = reshape(permute(tmpcomp,[1 3 2]),[size(tmpcomp,1)*size(tmpcomp,2) size(tmpcomp,3)]);
-          else
-            tmpcomp = tmpcomp(:,icomp);
-          end
-          tmpcomp = tmpcomp ./ sqrt(sum(abs(tmpcomp).^2));
-          randmat(irand,:) = tmpcomp;
-        end
-        % take the inner-product, because of cauchy-schwartz this goes from 0 -> 1 (norms are already 1)
-        congr = randmat * randmat';
-        % remove diagonal and put mean abs in congruence
-        congr(eye(size(congr))==1) = [];
-        congrglobmin(icomp,iparam) = mean(abs(congr));
-      end
-    end
+  if numel(globmininit) ~= 1
+    congrglobmin = squeeze(nanmean(nanmean(congrallrp(globmininit,globmininit,:,:),1),2));
+  else
+    congrglobmin = ones(ncomp,nrand);
   end
 else
-  randindex = [];
+  globmininit = [];
   congrglobmin = [];
 end
 
@@ -2067,7 +2224,7 @@ end
 randomstat.expvar         = randexpvar;
 randomstat.error          = randssqres;
 randomstat.congrall       = congrall;
-randomstat.globmininit    = randindex;
+randomstat.globmininit    = globmininit;
 randomstat.congrglobmin   = congrglobmin;
 randomstat.tuckcongr      = randtuckcongr;
 randomstat.degeninit      = degeninit;
@@ -2127,9 +2284,9 @@ end
 
 % get best possible solution and display number of expected degenerate solutions
 disp([dispprefix 'random start: ' num2str(length(degeninit)) ' out of ' num2str(nrand) ' initializations expected to be degenerate'])
-if ~isempty(randindex)
-  startval = randcomp{randindex(1)};
-  disp([dispprefix 'random start: lowest error-term from procedure = ' num2str(randssqres(randindex(1)))])
+if ~isempty(globmininit)
+  startval = randcomp{globmininit(1)};
+  disp([dispprefix 'random start: lowest error-term from procedure = ' num2str(randssqres(globmininit(1)))])
 else % if only degenerate solutions are found, than better pick the "best" one
   startval = randcomp{1};
   disp([dispprefix 'random start: lowest error-term from procedure = ' num2str(randssqres(1))])
