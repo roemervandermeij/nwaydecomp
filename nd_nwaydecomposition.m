@@ -1374,7 +1374,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
                 paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
                 % put in compsh
                 compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-              case 'spacetime'
+              case {'spacetime','spacefsp'}
                 switch iparam
                   case {1,2}
                     paramc1 = currestcomp{1}{iparam}(:,icompsh1);
@@ -1397,102 +1397,60 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
                       compcongr(icompsh1,icompsh2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
                     end
                   case 4
-                    % create frequency specific phases weighted by spatial maps and frequency profiles
-                    A1 = currestcomp{1}{1}(:,icompsh1);
-                    A2 = currestcomp{2}{1}(:,icompsh2);
-                    B1 = currestcomp{1}{2}(:,icompsh1);
-                    B2 = currestcomp{2}{2}(:,icompsh2);
-                    S1 = currestcomp{1}{4}(:,icompsh1);
-                    S2 = currestcomp{2}{4}(:,icompsh2);
-                    % construct complex site by freq matrix
-                    Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
-                    Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
-                    % scale with A
-                    Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
-                    Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
-                    % compute splithalfcoef over freqs, than abs, then average weighted with B
-                    shoverfreq = zeros(numel(B1),1);
-                    for ifreq = 1:numel(B1)
-                      currS1 = Scomp1(:,ifreq);
-                      currS2 = Scomp2(:,ifreq);
-                      currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                      currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
-                      shoverfreq(ifreq) = abs(currS1'*currS2);
-                    end
-                    shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                    % put in compsh
-                    compcongr(icompsh1,icompsh2,iparam) = shsumfreq;
-                  case 5
-                    switch Dmode
-                      case 'identity'
-                        % D is fixed with arbitrary order, make its splithalf coefficient irrelevant
-                        compcongr(icompsh1,icompsh2,iparam) = 1;
-                      case 'kdepcomplex'
-                        % scale with B
+                    switch model
+                      case 'spacetime'
+                        % create frequency specific phases weighted by spatial maps and frequency profiles
+                        A1 = currestcomp{1}{1}(:,icompsh1);
+                        A2 = currestcomp{2}{1}(:,icompsh2);
                         B1 = currestcomp{1}{2}(:,icompsh1);
                         B2 = currestcomp{2}{2}(:,icompsh2);
-                        D1 = currestcomp{1}{5}(:,:,icompsh1);
-                        D2 = currestcomp{2}{5}(:,:,icompsh2);
-                        D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
-                        D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
-                        % vectorize
-                        paramc1 = D1(:);
-                        paramc2 = D2(:);
-                        % normalize
-                        paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                        paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                        S1 = currestcomp{1}{4}(:,icompsh1);
+                        S2 = currestcomp{2}{4}(:,icompsh2);
+                        % construct complex site by freq matrix
+                        Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
+                        Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
+                        % scale with A
+                        Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
+                        Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
+                        % compute splithalfcoef over freqs, than abs, then average weighted with B
+                        shoverfreq = zeros(numel(B1),1);
+                        for ifreq = 1:numel(B1)
+                          currS1 = Scomp1(:,ifreq);
+                          currS2 = Scomp2(:,ifreq);
+                          currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
+                          currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
+                          shoverfreq(ifreq) = abs(currS1'*currS2);
+                        end
+                        shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
                         % put in compsh
-                        compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
+                        compcongr(icompsh1,icompsh2,iparam) = shsumfreq;
+                      case 'spacefsp'
+                        % create frequency specific phases weighted by spatial maps and frequency profiles
+                        A1 = currestcomp{1}{1}(:,icompsh1);
+                        A2 = currestcomp{2}{1}(:,icompsh2);
+                        B1 = currestcomp{1}{2}(:,icompsh1);
+                        B2 = currestcomp{2}{2}(:,icompsh2);
+                        L1 = currestcomp{1}{4}(:,:,icompsh1);
+                        L2 = currestcomp{2}{4}(:,:,icompsh2);
+                        % construct complex site by freq matrix
+                        Lcomp1 = exp(1i*2*pi*L1);
+                        Lcomp2 = exp(1i*2*pi*L2);
+                        % scale with A
+                        Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
+                        Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
+                        % compute splithalfcoef over freqs, than abs, then average weighted with B
+                        shoverfreq = zeros(numel(B1),1);
+                        for ifreq = 1:numel(B1)
+                          currL1 = Lcomp1(:,ifreq);
+                          currL2 = Lcomp2(:,ifreq);
+                          currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
+                          currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
+                          shoverfreq(ifreq) = abs(currL1'*currL2);
+                        end
+                        shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                        % put in compsh
+                        compcongr(icompsh1,icompsh2,iparam) = shsumfreq;
                     end
-                end
-              case 'spacefsp'
-                switch iparam
-                  case {1,2}
-                    paramc1 = currestcomp{1}{iparam}(:,icompsh1);
-                    paramc2 = currestcomp{2}{iparam}(:,icompsh2);
-                    % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
-                    compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-                  case 3
-                    paramc1 = currestcomp{1}{iparam}(:,icompsh1);
-                    paramc2 = currestcomp{2}{iparam}(:,icompsh2);
-                    % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
-                    if numel(paramc1) == numel(paramc2)
-                      compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-                    else
-                      compcongr(icompsh1,icompsh2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
-                    end
-                  case 4
-                    % create frequency specific phases weighted by spatial maps and frequency profiles
-                    A1 = currestcomp{1}{1}(:,icompsh1);
-                    A2 = currestcomp{2}{1}(:,icompsh2);
-                    B1 = currestcomp{1}{2}(:,icompsh1);
-                    B2 = currestcomp{2}{2}(:,icompsh2);
-                    L1 = currestcomp{1}{4}(:,:,icompsh1);
-                    L2 = currestcomp{2}{4}(:,:,icompsh2);
-                    % construct complex site by freq matrix
-                    Lcomp1 = exp(1i*2*pi*L1);
-                    Lcomp2 = exp(1i*2*pi*L2);
-                    % scale with A
-                    Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
-                    Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
-                    % compute splithalfcoef over freqs, than abs, then average weighted with B
-                    shoverfreq = zeros(numel(B1),1);
-                    for ifreq = 1:numel(B1)
-                      currL1 = Lcomp1(:,ifreq);
-                      currL2 = Lcomp2(:,ifreq);
-                      currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                      currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
-                      shoverfreq(ifreq) = abs(currL1'*currL2);
-                    end
-                    shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                    % put in compsh
-                    compcongr(icompsh1,icompsh2,iparam) = shsumfreq;
                   case 5
                     switch Dmode
                       case 'identity'
@@ -2022,7 +1980,7 @@ for irand1 = 1:nrand
                 paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
                 % put in compsh
                 compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
-              case 'spacetime'
+              case {'spacetime','spacefsp'}
                 switch iparam
                   case {1,2}
                     paramc1 = currcomp{1}{iparam}(:,icompr1);
@@ -2045,102 +2003,60 @@ for irand1 = 1:nrand
                       compcongr(icompr1,icompr2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
                     end
                   case 4
-                    % create frequency specific phases weighted by spatial maps and frequency profiles
-                    A1 = currcomp{1}{1}(:,icompr1);
-                    A2 = currcomp{2}{1}(:,icompr2);
-                    B1 = currcomp{1}{2}(:,icompr1);
-                    B2 = currcomp{2}{2}(:,icompr2);
-                    S1 = currcomp{1}{4}(:,icompr1);
-                    S2 = currcomp{2}{4}(:,icompr2);
-                    % construct complex site by freq matrix
-                    Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
-                    Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
-                    % scale with A
-                    Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
-                    Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
-                    % compute congruence over freqs, than abs, then average weighted with B
-                    shoverfreq = zeros(numel(B1),1);
-                    for ifreq = 1:numel(B1)
-                      currS1 = Scomp1(:,ifreq);
-                      currS2 = Scomp2(:,ifreq);
-                      currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                      currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
-                      shoverfreq(ifreq) = abs(currS1'*currS2);
-                    end
-                    shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                    % put in compsh
-                    compcongr(icompr1,icompr2,iparam) = shsumfreq;
-                  case 5
-                    switch Dmode
-                      case 'identity'
-                        % D is fixed with arbitrary order, make its congruence coefficient irrelevant
-                        compcongr(icompr1,icompr2,iparam) = 1;
-                      case 'kdepcomplex'
-                        % scale with B
+                    switch model
+                      case 'spacetime'
+                        % create frequency specific phases weighted by spatial maps and frequency profiles
+                        A1 = currcomp{1}{1}(:,icompr1);
+                        A2 = currcomp{2}{1}(:,icompr2);
                         B1 = currcomp{1}{2}(:,icompr1);
                         B2 = currcomp{2}{2}(:,icompr2);
-                        D1 = currcomp{1}{5}(:,:,icompr1);
-                        D2 = currcomp{2}{5}(:,:,icompr2);
-                        D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
-                        D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
-                        % vectorize
-                        paramc1 = D1(:);
-                        paramc2 = D2(:);
-                        % normalize
-                        paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                        paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                        S1 = currcomp{1}{4}(:,icompr1);
+                        S2 = currcomp{2}{4}(:,icompr2);
+                        % construct complex site by freq matrix
+                        Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
+                        Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
+                        % scale with A
+                        Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
+                        Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
+                        % compute congruence over freqs, than abs, then average weighted with B
+                        shoverfreq = zeros(numel(B1),1);
+                        for ifreq = 1:numel(B1)
+                          currS1 = Scomp1(:,ifreq);
+                          currS2 = Scomp2(:,ifreq);
+                          currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
+                          currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
+                          shoverfreq(ifreq) = abs(currS1'*currS2);
+                        end
+                        shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
                         % put in compsh
-                        compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
+                        compcongr(icompr1,icompr2,iparam) = shsumfreq;
+                      case 'spacefsp'
+                        % create frequency specific phases weighted by spatial maps and frequency profiles
+                        A1 = currcomp{1}{1}(:,icompr1);
+                        A2 = currcomp{2}{1}(:,icompr2);
+                        B1 = currcomp{1}{2}(:,icompr1);
+                        B2 = currcomp{2}{2}(:,icompr2);
+                        L1 = currcomp{1}{4}(:,:,icompr1);
+                        L2 = currcomp{2}{4}(:,:,icompr2);
+                        % construct complex site by freq matrix
+                        Lcomp1 = exp(1i*2*pi*L1);
+                        Lcomp2 = exp(1i*2*pi*L2);
+                        % scale with A
+                        Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
+                        Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
+                        % compute congruence over freqs, than abs, then average weighted with B
+                        shoverfreq = zeros(numel(B1),1);
+                        for ifreq = 1:numel(B1)
+                          currL1 = Lcomp1(:,ifreq);
+                          currL2 = Lcomp2(:,ifreq);
+                          currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
+                          currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
+                          shoverfreq(ifreq) = abs(currL1'*currL2);
+                        end
+                        shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                        % put in compsh
+                        compcongr(icompr1,icompr2,iparam) = shsumfreq;
                     end
-                end
-              case 'spacefsp'
-                switch iparam
-                  case {1,2}
-                    paramc1 = currcomp{1}{iparam}(:,icompr1);
-                    paramc2 = currcomp{2}{iparam}(:,icompr2);
-                    % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
-                    compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
-                  case 3
-                    paramc1 = currcomp{1}{iparam}(:,icompr1);
-                    paramc2 = currcomp{2}{iparam}(:,icompr2);
-                    % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
-                    if numel(paramc1) == numel(paramc2)
-                      compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
-                    else
-                      compcongr(icompr1,icompr2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
-                    end
-                  case 4
-                    % create frequency specific phases weighted by spatial maps and frequency profiles
-                    A1 = currcomp{1}{1}(:,icompr1);
-                    A2 = currcomp{2}{1}(:,icompr2);
-                    B1 = currcomp{1}{2}(:,icompr1);
-                    B2 = currcomp{2}{2}(:,icompr2);
-                    L1 = currcomp{1}{4}(:,:,icompr1);
-                    L2 = currcomp{2}{4}(:,:,icompr2);
-                    % construct complex site by freq matrix
-                    Lcomp1 = exp(1i*2*pi*L1);
-                    Lcomp2 = exp(1i*2*pi*L2);
-                    % scale with A
-                    Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
-                    Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
-                    % compute congruence over freqs, than abs, then average weighted with B
-                    shoverfreq = zeros(numel(B1),1);
-                    for ifreq = 1:numel(B1)
-                      currL1 = Lcomp1(:,ifreq);
-                      currL2 = Lcomp2(:,ifreq);
-                      currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                      currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
-                      shoverfreq(ifreq) = abs(currL1'*currL2);
-                    end
-                    shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                    % put in compsh
-                    compcongr(icompr1,icompr2,iparam) = shsumfreq;
                   case 5
                     switch Dmode
                       case 'identity'
