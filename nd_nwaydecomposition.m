@@ -83,7 +83,8 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.ncompeststep         = forward stepsize in ncomp estimation (default = 1) (backward is always 1; used in splithalf/corcondiag)
 %   cfg.ncompestshdatparam   = (for 'splithalf'): string containing field-name of partitioned data. Data should be kept in 1x2 cell-array, each partition in one cell
 %                              when using SPACE, one can also specify 'oddeven' as cfg.ncompestshdatparam. In this case the data will be partioned using odd/even trials/epochs
-%   cfg.ncompestshcritval    = (for 'splithalf'): 1Xnparam vector, critical value to use for selecting number of components using splif half (default = 0.7 for all)
+%   cfg.ncompestshcritval    = (for 'splithalf'): scalar, or 1Xnparam vector, critical value to use for selecting number of components using splif half (default = 0.7)
+%                              when using SPACE, the default for the trial profile and between-component coherency (in case Dmode = identity) is set to 0
 %   cfg.ncompestvarinc       = (for 'minexpvarinc'): minimal required increase in explained variance when increasing number of compononents by cfg.ncompeststep
 %   cfg.ncompestcorconval    = (for 'corcondiag'): minimum value of the core consistency diagnostic for increasing the number of components, between 0 and 1 (default is 0.7)
 %
@@ -275,11 +276,15 @@ if strcmp(cfg.ncompest,'splithalf')
   end
 end
 if strcmp(cfg.ncompest,'splithalf')
-  if (numel(cfg.ncompestshcritval)==1)
+  if (numel(cfg.ncompestshcritval)==1) % expand using defaults for SPACE
     if strncmp(cfg.model,'parafac',7)
       cfg.ncompestshcritval = repmat(cfg.ncompestshcritval,[1 ndimsdat]);
     elseif strcmp(cfg.model,'spacetime') || strcmp(cfg.model,'spacefsp')
       cfg.ncompestshcritval = repmat(cfg.ncompestshcritval,[1 5]);
+      cfg.ncompestshcritval(3) = 0; % set the trial profile to zero by default
+      if strcmp(cfg.Dmode,'identity')
+        cfg.ncompestshcritval(5) = 0; % set D to zero by default
+      end
     end
   else
     if (strncmp(cfg.model,'parafac',7) && (numel(cfg.ncompestshcritval)~=ndimsdat))... % FIXME: likley should contain check for PARAFAC2
