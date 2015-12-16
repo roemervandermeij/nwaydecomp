@@ -100,6 +100,14 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %        SPACEFSP/SPACETIME
 %   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use (default = 'identity')
 %
+%  
+%      -Using distributed computing to run random starts in paralel-
+%   cfg.distcomp.system          = 'torque', distributed system to use (currenlty only Torque is supported, need to have qsub FieldTrip module on path)
+%   cfg.distcomp.timereq         = scalar, maximum time requirement in seconds of a random start (default = 60*60*24*3 (3 days))
+%   cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is computed)
+%   cfg.distcomp.inputsaveprefix = string, path/filename prefix for temporarily saving input data with a random name (default, saving is determined by the queue system)
+%   cfg.distcomp.matlabcmd       = string, command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab') (default = 'matlab')
+%   cfg.distcomp.torquequeue     = string, name of Torque queue to submit to (default = 'batch') (for torque)
 %
 %
 %         Output nwaycomp:
@@ -129,12 +137,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 
 %  Undocumented options:
 % (experimental)
-% cfg.distcomp.system          = 'torque' or 'p2p', distributed computing for random starts (default = [])
-% cfg.distcomp.timereq         = scalar, maximum time requirement in seconds of a random start (default = 60*60*24*3 (3 days))
-% cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is computed)
-% cfg.distcomp.inputsaveprefix = string, path/filename prefix for temporarily saving input data with a random name (default, saving is determined by the queue system)
-% cfg.distcomp.matlabcmd       = string, command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab') (default = 'matlab') (for torque)
-% cfg.distcomp.torquequeue     = string, name of queue to submit to (default = 'batch') (for torque)
+% cfg.distcomp.system          = 'p2p'
 % cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))  (for p2p)
 % 
 %
