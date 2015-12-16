@@ -107,7 +107,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is computed)
 %   cfg.distcomp.inputsaveprefix = string, path/filename prefix for temporarily saving input data with a random name (default, saving is determined by the queue system)
 %   cfg.distcomp.matlabcmd       = string, command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab') (default = 'matlab')
-%   cfg.distcomp.torquequeue     = string, name of Torque queue to submit to (default = 'batch') (for torque)
+%   cfg.distcomp.torquequeue     = string, name of Torque queue to submit to (default = 'batch')
 %
 %
 %         Output nwaycomp:
@@ -199,9 +199,6 @@ cfg.distcomp.inputsaveprefix  = ft_getopt(cfg.distcomp, 'inputsaveprefix',    []
 cfg.distcomp.matlabcmd        = ft_getopt(cfg.distcomp, 'matlabcmd',          'matlab'); % i.e. current dir
 cfg.distcomp.torquequeue      = ft_getopt(cfg.distcomp, 'torquequeue',        'batch'); 
 cfg.distcomp.p2presubdel      = ft_getopt(cfg.distcomp, 'p2presubdel',        60*60*24*3);
-if ~isempty(cfg.distcomp.system) && ~strcmp(getenv('USER'),'roevdmei')
-  error('distributed computing implementation of random starting is highly experimental, disable error at own risk')
-end
 if strcmp(cfg.distcomp.system,'p2p') && isempty(cfg.distcomp.p2presubdel)
   error('need to specifiy cfg.distcomp.p2presubdel')
 end
