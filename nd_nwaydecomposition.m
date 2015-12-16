@@ -101,7 +101,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use (default = 'identity')
 %
 %  
-%      -Using distributed computing to run random starts in paralel-
+%      -Using distributed computing to run random starts in parallel-
 %   cfg.distcomp.system          = 'torque', distributed system to use (currenlty only Torque is supported, need to have qsub FieldTrip module on path)
 %   cfg.distcomp.timereq         = scalar, maximum time requirement in seconds of a random start (default = 60*60*24*3 (3 days))
 %   cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is computed)
