@@ -102,7 +102,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 %  
 %      -Using distributed computing to run random starts in parallel-
-%   cfg.distcomp.system          = 'torque', distributed system to use (currenlty only Torque is supported, need to have qsub FieldTrip module on path)
+%   cfg.distcomp.system          = string, distributed system to use (currenlty only 'torque' is supported, need to have qsub FieldTrip module on path)
 %   cfg.distcomp.timereq         = scalar, maximum time requirement in seconds of a random start (default = 60*60*24*3 (3 days))
 %   cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is computed)
 %   cfg.distcomp.inputsaveprefix = string, path/filename prefix for temporarily saving input data with a random name (default, saving is determined by the queue system)
