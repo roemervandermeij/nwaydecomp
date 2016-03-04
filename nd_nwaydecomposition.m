@@ -332,7 +332,7 @@ end
 % Handle input for SPACE models
 % the below code also applies a trick to dramatically reduce memory in some case
 if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
-  if strcmp(ft_datatype(data),'freq')
+  if strcmp(ft_datatype(data),'freq') && ~strcmp(data.dimord,'chan_freq_epoch_tap') % ft_datatype is a bit eager, add check for dimord
     % Handle output from ft_freqanalysis
     if ~any(strcmp(cfg.datparam,{'fourierspctrm','crsspctrm'}))
       error('cfg.datparam should be either ''fourierspctrm'' or ''crsspctrm'' when input is output from ft_freqanalysis')
