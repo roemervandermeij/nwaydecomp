@@ -1883,7 +1883,7 @@ if ~isempty(distcomp.system)
       error('model not yet supported in automatic random starting')
   end
   % delete temporary copy of data if it was created
-  if ~isempty(distcomp.inputsaveprefix) && ischar(distcomp.inputsaveprefix)
+  if isnumeric(dat) && ~isempty(distcomp.inputsaveprefix) && ischar(distcomp.inputsaveprefix)
     delete(filename)
   end
   
