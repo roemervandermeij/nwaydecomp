@@ -160,6 +160,11 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %    You should have received a copy of the GNU General Public License
 %    along with Nwaydecomp. If not, see <http://www.gnu.org/licenses/>.
 
+% these are used by the ft_preamble/ft_postamble function and scripts
+ft_revision = '$Id$';
+ft_nargin   = nargin;
+ft_nargout  = nargout;
+
 % do the general setup of the function
 ft_defaults
 ft_preamble init
