@@ -2,7 +2,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 
 % ND_NWAYDECOMPOSITION Decomposes an N-way array of electrophysiological data into components.
 % 
-% Please first read the README_FIRST, acompanying this toolbox.
+% Please first read the README, acompanying this toolbox.
 %
 % A numerical N-way array needs to be present, and indicated in the cfg.
 %
@@ -50,7 +50,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %        32(1), 111-123.
 % 
 % For additional information of the models, please also see their low-level functions. And, of course, 
-% the README_FIRST acompanying this toolbox.
+% the README acompanying this toolbox.
 %
 %
 %

@@ -59,7 +59,7 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 %
 
 %
-% Copyright (C) 2010-2015, Roemer van der Meij, roemervandermeij AT gmail DOT com
+% Copyright (C) 2010-present, Roemer van der Meij, roemervandermeij AT gmail DOT com
 %
 % This file is part of Nwaydecomp, see https://github.com/roemervandermeij/nwaydecomp
 %
