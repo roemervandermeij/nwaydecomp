@@ -2,7 +2,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 
 % ND_NWAYDECOMPOSITION Decomposes an N-way array of electrophysiological data into components.
 % 
-% Please first read the README_FIRST.rtf, acompanying this toolbox.
+% Please first read the README_FIRST, acompanying this toolbox.
 %
 % A numerical N-way array needs to be present, and indicated in the cfg.
 %
@@ -14,7 +14,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % 2) it can be used to estimate the number of components to extract
 %
 % Ad1: 
-% Each of the supported models needs to randomly initialized multiple times in order to avoid local minima 
+% Each of the supported models needs to be randomly initialized multiple times in order to avoid local minima 
 % of the loss functions of each model, and to avoid degenerate solutions. Once it converges to the same 
 % solution from multiple random starting points, it can be assumed the global minimum is reached.
 %
@@ -32,7 +32,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % 3) minium increase in explained variance. A simple procedure that increases the number of components until the new component
 %    no longer results in a certain increase of % explained variance.
 % 4) degeneracy. This procedure keeps on increasing the number of components until some become degenerate. This uses a statistic
-%    denote as the Tucker's congruency coefficient, which ranges from 0 to 1 (fully degenerate). 
+%    denoted as the Tucker's congruency coefficient, which ranges from 0 to 1 (fully degenerate). 
 %
 % The settings of the above strategies are specified in the cfg. 
 %
@@ -50,7 +50,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %        32(1), 111-123.
 % 
 % For additional information of the models, please also see their low-level functions. And, of course, 
-% the README_FIRST.rtf acompanying this toolbox.
+% the README_FIRST acompanying this toolbox.
 %
 %
 %
@@ -143,7 +143,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 
 %
-% Copyright (C) 2010-2015, Roemer van der Meij, roemervandermeij AT gmail DOT com
+% Copyright (C) 2010-present, Roemer van der Meij, roemervandermeij AT gmail DOT com
 %
 % This file is part of Nwaydecomnp, see https://github.com/roemervandermeij/nwaydecomp
 %
