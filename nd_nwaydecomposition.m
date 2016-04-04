@@ -415,7 +415,8 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
             t_ftimwin     = ft_findcfg(data.cfg,'t_ftimwin');
             timwinnsample = round(t_ftimwin(ifreq) .* cfg.fsample);
             % undo additional the scaling by sqrt(2./ timwinnsample)
-            currfour      = currfour ./ sqrt(2 ./ timwinnsample); 
+            currfour      = currfour ./ sqrt(2 ./ timwinnsample);
+            currfour      = currfour .* 2; % add the scaling of 2 of Fourier coefficients due to only taking positive frequencies
           end
           %%%%%%
           % obtain count of time-points and tapers
@@ -444,6 +445,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
             % undo additional the scaling by (sqrt(2./ timwinnsample)).^2 = (2./ timwinnsample) 
             % the scaling is performed on the level of individual taper-specific Fourier coefficients, and currcsd contains the summed cross-products of these
             currcsd       = currcsd ./ (2 ./ timwinnsample); 
+            currcsd       = currcsd .* (2.^2); % add the scaling of 2 of Fourier coefficients (2.^2 for CSD) due to only taking positive frequencies
           end
           %%%%%%
           % obtain count of time-points (tapers are never kept if crsspctrm, enforced above)
