@@ -486,7 +486,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     % disp progress
     disp('input for SPACE is the result of custom code')
     if ~isnumeric(data.(cfg.datparam))
-      warning('not optimizing data because data is specified as filename')
+      warning('not attempting memory and computation time optimization because data is specified as filename')
     else
       % only apply trick if ntaper exceeds nchan
       if size(data.(cfg.datparam),4)>size(data.(cfg.datparam),1)
