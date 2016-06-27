@@ -42,7 +42,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %    van der Meij R, Jacobs J, Maris E (2015). Uncovering phase-coupled oscillatory networks in
 % 	      electrophysiological data. Human Brain Mapping
 % In the case of applying SPACE to extracranial recordings, please also cite the second reference paper:
-%    van der Meij R, van Ede F, Maris E (accepted). Rhythmic Components in Extracranial Brain 
+%    van der Meij R, van Ede F, Maris E (2016). Rhythmic Components in Extracranial Brain 
 %         Signals Reveal Multifaceted Task Modulation of Overlapping Neuronal Activity. PLOS One
 %
 % The PARAFAC and PARAFAC2 models are modified such that parameter matrices can be real-valued when the input array is complex-valued. 
