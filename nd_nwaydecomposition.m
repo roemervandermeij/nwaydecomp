@@ -1935,6 +1935,10 @@ else
     disp([dispprefix 'random start ' num2str(irand) ': decomposition of random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished: error-term = ' num2str(rndssqres)]);
   end
 end
+% NaN failsafe
+if any(isnan(randexpvar))
+  error('at least one random start result in NaN explained variance, likely cause is input numerical array')
+end
 
 % Create randomstat structure and set best possible start-values
 % sort output by ssqres
