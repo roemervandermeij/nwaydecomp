@@ -79,7 +79,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.convcrit             = number, convergence criterion (default = 1e-8)
 %   cfg.degencrit            = number, degeneracy criterion (default = 0.7)
 %   cfg.ncomp                = number of components to extract
-%   cfg.ncompest             = 'no', 'splithalf', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no') (FIXME: complexicity of minexpvarinc and degeneracy should same as others)
+%   cfg.ncompest             = 'no', 'splithalf', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no'), see below (FIXME: complexicity of minexpvarinc and degeneracy should same as others)
 %   cfg.ncompestrandstart    = 'no' or number indicating amount of random starts for estimating component number (default = cfg.randstart)
 %   cfg.ncompeststart        = starting number of components to try to extract (default = 1) (used in splithalf/corcondiag)
 %   cfg.ncompestend          = maximum number of components to try to extract (default = 50) (used in splithalf/corcondiag)
