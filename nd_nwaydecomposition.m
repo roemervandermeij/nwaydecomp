@@ -113,6 +113,22 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.distcomp.torquequeue     = string, name of Torque queue to submit to (default = 'batch')
 %
 %
+%       CFG.NCOMPEST - Methods for determining the number of components to extract       
+%            splithalf: Determines the number of *reliable* components to extract. Extract components from two splits of the data (e.g. odd/even trials), and judge similiarity (coef. 0<->1) 
+%                         between components from the two splits, per parameter. If similarity of each parameter surpasses its criterion, increase the number of components (otherwise decrease). 
+%                         Advised for all models. See cfg.ncompestshcritval & cfg.ncompestshdatparam & cfg.ncompeststart/end/step
+%                         To obtain a split-half estimate for a fixed number of componenents, set cfg.ncompeststart/end to the same number, and set cfg.ncompestshcritval to zeros.
+%                         (see any of the three reference paper, and Bro 1998, Multi-way Analysis in the Food Industry.)
+%           corcondiag: Extract components, and compute the Core Consistency Diagnostic (coef. 0<->1). This coefficient indicates whether the components reflect the N-way
+%                         structure of the data, or reflects noise. If the coefficients is lower than the criterion, decrease the number of components, otherwise, increase the number.
+%                         Not advised for anything but PARAFAC. See cfg.ncompestcorconval & cfg.ncompeststart/end/step
+%                         (see Bro 1998, Multi-way Analysis in the Food Industry.)
+%         minexpvarinc: Increase the number of components until the increase of explained variance w.r.t. the previous number of components is smaller than cfg.ncompestvarinc
+%                         See cfg.ncompeststart/end. Stepsize is always 1.
+%           degeneracy: Increase the number of components until the components become degenerate in at least one of the parameters. 
+%                         Not advised for anything but PARAFAC. See cfg.degencrit & cfg.ncompeststart/end. Stepsize is always 1.
+%
+%
 %         Output nwaycomp:
 %             label: cell-array containing labels for each channel
 %            dimord: string, dimord of input data
@@ -120,14 +136,13 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %            expvar: number, variance explained by the model
 %         tuckcongr: vector, Tucker's congruence coefficient per component
 %           scaling: vector orcell-array, dep. on model, containing magnitude/phase scaling coefficients 
-%               cfg:
+%               cfg: input cfg and its history
 %
 %    Possible additional output fields:
 %            t3core: a Tucker3 model core-array (vectorized) (not possible for all models)
 %        randomstat: structure containing statistics of random estimation of final decomposition (if randomly started)
 %     splithalfstat: structure containing statistics for split-half component number estimation procedure
 %    corcondiagstat: structure containing statistics for corcondiag component number estimation procedure
-%              freq: if present in input data
 %
 %
 % To facilitate data-handling and distributed computing you can use
