@@ -115,9 +115,11 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 %       CFG.NCOMPEST - Methods for determining the number of components to extract       
 %            splithalf: Determines the number of *reliable* components to extract. Extract components from two splits of the data (e.g. odd/even trials), and judge similiarity (coef. 0<->1) 
-%                         between components from the two splits, per parameter. If similarity of each parameter surpasses its criterion, increase the number of components (otherwise decrease). 
+%                         between components from the two splits. If similarity of each parameter surpasses its criterion, increase the number of components (otherwise decrease). 
+%                         The criterion is set per parameter using cfg.ncompestshcritval. Set the criterion to zero to ignore parameters.
 %                         Advised for all models. See cfg.ncompestshcritval & cfg.ncompestshdatparam & cfg.ncompeststart/end/step
-%                         To obtain a split-half estimate for a fixed number of componenents, set cfg.ncompeststart/end to the same number, and set cfg.ncompestshcritval to zeros.
+%                         To obtain a split-half estimate for a fixed number of componenents, set cfg.ncompeststart/end to the same number, and set cfg.ncompestshcritval to NaN for the parameters that 
+%                         should determine the spilt-half coefficient.
 %                         (see any of the three reference paper, and Bro 1998, Multi-way Analysis in the Food Industry.)
 %           corcondiag: Extract components, and compute the Core Consistency Diagnostic (coef. 0<->1). This coefficient indicates whether the components reflect the N-way
 %                         structure of the data, or reflects noise. If the coefficients is lower than the criterion, decrease the number of components, otherwise, increase the number.
@@ -315,6 +317,9 @@ if strcmp(cfg.ncompest,'splithalf')
         || (strcmp(cfg.model,'spacefsp') && (numel(cfg.ncompestshcritval)~=5))
       error('improper size of cfg.ncompestshcritval')
     end
+  end
+  if all(cfg.ncompestshcritval==0)
+    error('cfg.ncompestshcritval cannot be zero for all parameters')
   end
 end
 
