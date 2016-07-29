@@ -1342,18 +1342,18 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   % extract all non-degenerate startvalues
   startval1 = randomstat1.startvalall(setdiff(1:nrand,randomstat1.degeninit));
   startval2 = randomstat2.startvalall(setdiff(1:nrand,randomstat2.degeninit));
-  % select the minimum non-degenerate startvalues as the maximum FIXME: like, not optimal. (I'm lazy right now, and doesn't matter for SPACE with identity Dmode)
-  nondegennrand = min(numel(startval1),numel(startval2));
-  startval1 = startval1(1:nondegennrand);
-  startval2 = startval2(1:nondegennrand);
+  nndegenrandprt1 = numel(startval1);
+  nndegenrandprt2 = numel(startval2);
   
   % It used to be the case that the splithalf coefficients were computed only for the 'final' decomposition, instead of using all random starts
   % Keeping the code hacked code below in case of switching back
   estcomp = cell(1,2);
-  estcomp{1} = cell(1,nondegennrand);
-  estcomp{2} = cell(1,nondegennrand);
-  for inondegenrand = 1:nondegennrand
+  estcomp{1} = cell(1,nndegenrandprt1);
+  estcomp{2} = cell(1,nndegenrandprt2);
+  for inondegenrand = 1:nndegenrandprt1
     estcomp{1}{inondegenrand} = startval1{inondegenrand};
+  end
+  for inondegenrand = 1:nndegenrandprt2
     estcomp{2}{inondegenrand} = startval2{inondegenrand};
   end
   %   % set niter to a small number in case the solution in random starts has not converged yet (which will cause the below to last very long)
@@ -1384,10 +1384,10 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   %   end
   
   % compute splithalf coeffcients for all possible pairs of random starts from the splithalves
-  partcombcompsh = cell(nondegennrand,nondegennrand);
+  partcombcompsh = cell(nndegenrandprt1,nndegenrandprt2);
   compsh = NaN(incomp,length(randomstat1.startvalall{1})); % NaN in case of degenflg and the below is not executed
-  for irandpart1 = 1:nondegennrand
-    for irandpart2 = 1:nondegennrand
+  for irandpart1 = 1:nndegenrandprt1
+    for irandpart2 = 1:nndegenrandprt2
       % set current estcomp
       currestcomp = cell(1,2);
       currestcomp{1} = estcomp{1}{irandpart1};
@@ -1545,8 +1545,8 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   % check whether any of the combinations of random starts of the partitions pass the splithalf criterion
   % do a splithalf criterion check
   partcombpass = false(size(partcombcompsh));
-  for irandpart1 = 1:nondegennrand
-    for irandpart2 = 1:nondegennrand
+  for irandpart1 = 1:nndegenrandprt1
+    for irandpart2 = 1:nndegenrandprt2
       currcompsh = partcombcompsh{irandpart1,irandpart2};
       pass = true;
       for icomp = 1:incomp
@@ -1572,7 +1572,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     % pick best possible compsh to pass on, determine 'best' by highest minimal value
     maxminshcoeff = cellfun(@min,cellfun(@min,partcombcompsh,'uniformoutput',0));
     [dum maxind] = max(maxminshcoeff(:));
-    [rowind,colind] = ind2sub([nondegennrand nondegennrand],maxind);
+    [rowind,colind] = ind2sub([nndegenrandprt1 nndegenrandprt2],maxind);
     compsh = partcombcompsh{rowind,colind};
     % save which is 'best' by setting it to 2 in partcombpass
     partcombpass(rowind,colind) = 2;
