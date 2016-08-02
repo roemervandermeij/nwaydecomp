@@ -1011,11 +1011,11 @@ while ~succes % the logic used here is identical as in splithalf, they should be
   % see if there are any non-degenerate start values and set flag if otherwise
   if length(randomstat.degeninit)==nrand
     % try again with another round
-    [startval, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['corcondiag ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [startval, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['corcondiag ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
     if length(randomstat.degeninit)==nrand
       degenflg = true;
     else
-      degenflg = false;
+      degenflg = false; % good to go
     end
   else
     degenflg = false;
