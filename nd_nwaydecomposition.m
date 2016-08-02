@@ -1323,14 +1323,18 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   if length(randomstat1.degeninit)==nrand && length(randomstat2.degeninit)==nrand
     degenflg = true;
   elseif length(randomstat1.degeninit)==nrand && length(randomstat2.degeninit)~=nrand % if random inits for part1 do not contain non-degenerate solutions, but they do for part2, retry part1
-    [startval1, randomstat1] = randomstart(model, datpart1, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [startval1, randomstat1] = randomstart(model, datpart1, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half part 1 ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
     if length(randomstat1.degeninit)==nrand % if there are still no non-degenerates
       degenflg = true;
+    else
+      degenflg = false; % non-degenerates present, good to go
     end
   elseif length(randomstat1.degeninit)~=nrand && length(randomstat2.degeninit)==nrand% if random inits for part2 do not contain non-degenerate solutions, but they do for part1, retry part2
-    [startval2, randomstat2] = randomstart(model, datpart2, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [startval2, randomstat2] = randomstart(model, datpart2, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half part 2 ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
     if length(randomstat2.degeninit)==nrand % if there are still no non-degenerates
       degenflg = true;
+    else
+      degenflg = false; % non-degenerates present, good to go
     end
   else
     degenflg = false;
