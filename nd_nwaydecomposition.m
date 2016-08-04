@@ -1,58 +1,58 @@
 function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 
 % ND_NWAYDECOMPOSITION Decomposes an N-way array of electrophysiological data into components.
-% 
+%
 % Please first read the README, acompanying this toolbox.
 %
 % A numerical N-way array needs to be present, and indicated in the cfg.
 %
 % Supported N-way models are: SPACE-FSP, SPACE-time, PARAFAC (modified), PARAFAC2 (modified)
-% This function can be used to decompose numerical arrays, which are complex-valued or real-valued, into 
-% components. How a component is modeled and what it represents, as well as the required structure of the 
+% This function can be used to decompose numerical arrays, which are complex-valued or real-valued, into
+% components. How a component is modeled and what it represents, as well as the required structure of the
 % numerical array, depends on the model. This functions does two important things:
 % 1) it takes care of randomly initializing each model
 % 2) it can be used to estimate the number of components to extract
 %
-% Ad1: 
-% Each of the supported models needs to be randomly initialized multiple times in order to avoid local minima 
-% of the loss functions of each model, and to avoid degenerate solutions. Once it converges to the same 
+% Ad1:
+% Each of the supported models needs to be randomly initialized multiple times in order to avoid local minima
+% of the loss functions of each model, and to avoid degenerate solutions. Once it converges to the same
 % solution from multiple random starting points, it can be assumed the global minimum is reached.
 %
 % Ad2:
-% The number of components to extract from the numerical array needs to be determined empirically (similar to ICA). 
+% The number of components to extract from the numerical array needs to be determined empirically (similar to ICA).
 % This is the case for all of the supported models. This functions can be used for this purpose using 4 different
 % strategies:
-% 1) split-half of the array along a dimension. This strategy allows for increasing the number of components until a criterion 
-%    is no longer reached. This criterion is based on a statistic that assesses the similarity of components between 
+% 1) split-half of the array along a dimension. This strategy allows for increasing the number of components until a criterion
+%    is no longer reached. This criterion is based on a statistic that assesses the similarity of components between
 %    split halves, which ranges between 0 and 1 (identical). The two split halves need to be given in a separate field in the data,
 %    next to the full N-way array.
-% 2) core-consistency diagnostic. This approach uses a statistic which can be viewed as a measures of noise being modelled 
-%    and as such as an indication of whether the model with a certain number of components is still appropriate 
+% 2) core-consistency diagnostic. This approach uses a statistic which can be viewed as a measures of noise being modelled
+%    and as such as an indication of whether the model with a certain number of components is still appropriate
 %    (mostly appropriate for PARAFAC). This ranges from 0 to 1 (perfect)
 % 3) minium increase in explained variance. A simple procedure that increases the number of components until the new component
 %    no longer results in a certain increase of % explained variance.
 % 4) degeneracy. This procedure keeps on increasing the number of components until some become degenerate. This uses a statistic
-%    denoted as the Tucker's congruency coefficient, which ranges from 0 to 1 (fully degenerate). 
+%    denoted as the Tucker's congruency coefficient, which ranges from 0 to 1 (fully degenerate).
 %
-% The settings of the above strategies are specified in the cfg. 
+% The settings of the above strategies are specified in the cfg.
 %
 %
-% Models SPACE-time and SPACE-FSP are fully described in the following publication. 
+% Models SPACE-time and SPACE-FSP are fully described in the following publication.
 % Please cite when either of them are used:
 %    van der Meij R, Jacobs J, Maris E (2015). Uncovering phase-coupled oscillatory networks in
 % 	      electrophysiological data. Human Brain Mapping
 % In the case of applying SPACE to extracranial recordings, please also cite the second reference paper:
-%    van der Meij R, van Ede F, Maris E (2016). Rhythmic Components in Extracranial Brain 
+%    van der Meij R, van Ede F, Maris E (2016). Rhythmic Components in Extracranial Brain
 %         Signals Reveal Multifaceted Task Modulation of Overlapping Neuronal Activity. PLOS One
 %
-% The PARAFAC and PARAFAC2 models are modified such that parameter matrices can be real-valued when the input array is complex-valued. 
-% For additional info on the models and the split-half procedure, see the following publication, please cite when either of 
+% The PARAFAC and PARAFAC2 models are modified such that parameter matrices can be real-valued when the input array is complex-valued.
+% For additional info on the models and the split-half procedure, see the following publication, please cite when either of
 % the models are used:
-%    van der Meij, R., Kahana, M. J., and Maris, E. (2012). Phase-amplitude coupling in 
-%        human ECoG is spatially distributed and phase diverse. Journal of Neuroscience, 
+%    van der Meij, R., Kahana, M. J., and Maris, E. (2012). Phase-amplitude coupling in
+%        human ECoG is spatially distributed and phase diverse. Journal of Neuroscience,
 %        32(1), 111-123.
-% 
-% For additional information of the models, please also see their low-level functions. And, of course, 
+%
+% For additional information of the models, please also see their low-level functions. And, of course,
 % the README acompanying this toolbox.
 %
 %
@@ -64,17 +64,17 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % The input data can be any type of FieldTrip-style data structure, as long as the field containing the data
 % to be decomposed contains a numerical array. For the SPACE models, the input needs to be Fourier coefficients.
 % These Fourier coefficients can be provided in 2 ways. They can either come from (1) custom code together with dimord
-% of 'chan_freq_epoch_tap' (with the Fourier coefficients following this dimensionality; nepoch can be 1), 
-% or (2) they can can come as output from ft_freqanalysis (cfg.output = 'fourier' or 'powandcsd'; DPSS tapering is supported). 
-% In the case of the later, the 'rpt' (trial) dimension will be used as 'epochs' in SPACE terminology. The time dimension will be 
-% used as 'tapers' in SPACE terminology. If multiple tapers are present per time-point, these will be handled accordingly. 
-% Additionally, if you used method = 'mtmconvol', and frequency-dependent window-lengths, it is highly recommended to supply 
+% of 'chan_freq_epoch_tap' (with the Fourier coefficients following this dimensionality; nepoch can be 1),
+% or (2) they can can come as output from ft_freqanalysis (cfg.output = 'fourier' or 'powandcsd'; DPSS tapering is supported).
+% In the case of the later, the 'rpt' (trial) dimension will be used as 'epochs' in SPACE terminology. The time dimension will be
+% used as 'tapers' in SPACE terminology. If multiple tapers are present per time-point, these will be handled accordingly.
+% Additionally, if you used method = 'mtmconvol', and frequency-dependent window-lengths, it is highly recommended to supply
 % cfg.fsample, containing the sampling rate of the data in Hz.
 %
 %
 %   cfg.model                = 'parafac', 'parafac2', 'parafac2cp', 'spacetime', 'spacefsp'
 %   cfg.datparam             = string, containing field name of data to be decomposed (must be a numerical array)
-%   cfg.randstart            = 'no' or number indicating amount of random starts for final decomposition (default = 50) 
+%   cfg.randstart            = 'no' or number indicating amount of random starts for final decomposition (default = 50)
 %   cfg.numiter              = number of iterations to perform (default = 2500)
 %   cfg.convcrit             = number, convergence criterion (default = 1e-8)
 %   cfg.degencrit            = number, degeneracy criterion (default = 0.7)
@@ -103,22 +103,24 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %        SPACEFSP/SPACETIME
 %   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use (default = 'identity')
 %
-%  
+%
 %      -Using distributed computing to run random starts in parallel-
-%   cfg.distcomp.system          = string, distributed system to use (currenlty only 'torque' is supported, need to have qsub FieldTrip module on path)
-%   cfg.distcomp.timreq          = scalar, maximum time requirement in seconds of a random start (default = 60*60*24*1 (1 days))
-%   cfg.distcomp.memreq          = scalar, maximum memory requirement in bytes of a random start (default is computed)
-%   cfg.distcomp.inputsaveprefix = string, path/filename prefix for temporarily saving input data with a random name (default, saving is determined by the queue system)
-%   cfg.distcomp.matlabcmd       = string, command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab') (default = 'matlab')
-%   cfg.distcomp.torquequeue     = string, name of Torque queue to submit to (default = 'batch')
+%   cfg.distcomp.system          = string, distributed computing system to use, 'torque' or 'matlabpct' ('torque' requires the qsub FieldTrip module on path, 'matlabpct' implementation is via parfor)
+%   cfg.distcomp.timreq          = scalar, (torque only) maximum time requirement in seconds of a random start (default = 60*60*24*1 (1 days))
+%   cfg.distcomp.memreq          = scalar, (torque only) maximum memory requirement in bytes of a random start (default is computed)
+%   cfg.distcomp.inputsaveprefix = string, (torque only) path/filename prefix for temporarily saving input data with a random name (default, saving is determined by the queue system)
+%   cfg.distcomp.matlabcmd       = string, (torque only) command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab') (default = 'matlab')
+%   cfg.distcomp.torquequeue     = string, (torque only) name of Torque queue to submit to (default = 'batch')
+%   cfg.distcomp.mpctpoolsize    = scalar, (matlabpct only) number of workers to use (default is determined by matlab)
+%   cfg.distcomp.mpctcluster     = Cluster object, (matlabpct only) Cluster object specifying PCT Cluster profile/parameters, see matlab help PARCLUSTER
 %
 %
-%       CFG.NCOMPEST - Methods for determining the number of components to extract       
-%            splithalf: Determines the number of *reliable* components to extract. Extract components from two splits of the data (e.g. odd/even trials), and judge similiarity (coef. 0<->1) 
-%                         between components from the two splits. If similarity of each parameter surpasses its criterion, increase the number of components (otherwise decrease). 
+%       CFG.NCOMPEST - Methods for determining the number of components to extract
+%            splithalf: Determines the number of *reliable* components to extract. Extract components from two splits of the data (e.g. odd/even trials), and judge similiarity (coef. 0<->1)
+%                         between components from the two splits. If similarity of each parameter surpasses its criterion, increase the number of components (otherwise decrease).
 %                         The criterion is set per parameter using cfg.ncompestshcritval. Set the criterion to zero to ignore parameters.
 %                         Advised for all models. See cfg.ncompestshcritval & cfg.ncompestshdatparam & cfg.ncompeststart/end/step
-%                         To obtain a split-half estimate for a fixed number of componenents, set cfg.ncompeststart/end to the same number, and set cfg.ncompestshcritval to NaN for the parameters that 
+%                         To obtain a split-half estimate for a fixed number of componenents, set cfg.ncompeststart/end to the same number, and set cfg.ncompestshcritval to NaN for the parameters that
 %                         should determine the spilt-half coefficient.
 %                         (see any of the three reference paper, and Bro 1998, Multi-way Analysis in the Food Industry.)
 %           corcondiag: Extract components, and compute the Core Consistency Diagnostic (coef. 0<->1). This coefficient indicates whether the components reflect the N-way
@@ -127,7 +129,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %                         (see Bro 1998, Multi-way Analysis in the Food Industry.)
 %         minexpvarinc: Increase the number of components until the increase of explained variance w.r.t. the previous number of components is smaller than cfg.ncompestvarinc
 %                         See cfg.ncompeststart/end. Stepsize is always 1.
-%           degeneracy: Increase the number of components until the components become degenerate in at least one of the parameters. 
+%           degeneracy: Increase the number of components until the components become degenerate in at least one of the parameters.
 %                         Not advised for anything but PARAFAC. See cfg.degencrit & cfg.ncompeststart/end. Stepsize is always 1.
 %
 %
@@ -137,7 +139,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %              comp: cell-array, each component consists of 1 cell, each of these consist of 1 cell per dimension/parameter
 %            expvar: number, variance explained by the model
 %         tuckcongr: vector, Tucker's congruence coefficient per component
-%           scaling: vector orcell-array, dep. on model, containing magnitude/phase scaling coefficients 
+%           scaling: vector orcell-array, dep. on model, containing magnitude/phase scaling coefficients
 %               cfg: input cfg and its history
 %
 %    Possible additional output fields:
@@ -159,13 +161,13 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % (experimental)
 % cfg.distcomp.system          = 'p2p'
 % cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))  (for p2p)
-% 
+%
 %
 
 %
 % Copyright (C) 2010-present, Roemer van der Meij, roemervandermeij AT gmail DOT com
 %
-% This file is part of Nwaydecomnp, see https://github.com/roemervandermeij/nwaydecomp
+% This file is part of Nwaydecomp, see https://github.com/roemervandermeij/nwaydecomp
 %
 %    Nwaydecomp is free software: you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by
@@ -191,7 +193,7 @@ ft_preamble init
 ft_preamble provenance
 ft_preamble trackconfig
 %ft_preamble debug % ft_preamble_debug currently leads to qsubfeval saving a copy of the input data
-ft_preamble loadvar data 
+ft_preamble loadvar data
 
 % Set defaults
 cfg.model               = ft_getopt(cfg, 'model',                  []);
@@ -207,7 +209,7 @@ cfg.ncompestrandstart   = ft_getopt(cfg, 'ncompestrandstart',      cfg.randstart
 cfg.ncompeststart       = ft_getopt(cfg, 'ncompeststart',          1);
 cfg.ncompestend         = ft_getopt(cfg, 'ncompestend',            50);
 cfg.ncompeststep        = ft_getopt(cfg, 'ncompeststep',           1);
-cfg.ncompestshdatparam  = ft_getopt(cfg, 'ncompestshdatparam',     []); 
+cfg.ncompestshdatparam  = ft_getopt(cfg, 'ncompestshdatparam',     []);
 cfg.ncompestshcritval   = ft_getopt(cfg, 'ncompestshcritval',      0.7); % expanded to all paramameters later
 cfg.specialdims         = ft_getopt(cfg, 'specialdims',            []); % parafac2 specific
 cfg.ncompestvarinc      = ft_getopt(cfg, 'ncompestvarinc',         []);
@@ -222,8 +224,10 @@ cfg.distcomp.memreq           = ft_getopt(cfg.distcomp, 'memreq',             []
 cfg.distcomp.timreq           = ft_getopt(cfg.distcomp, 'timreq',             60*60*24*1);
 cfg.distcomp.inputsaveprefix  = ft_getopt(cfg.distcomp, 'inputsaveprefix',    []); % i.e. current dir
 cfg.distcomp.matlabcmd        = ft_getopt(cfg.distcomp, 'matlabcmd',          'matlab'); % i.e. current dir
-cfg.distcomp.torquequeue      = ft_getopt(cfg.distcomp, 'torquequeue',        'batch'); 
+cfg.distcomp.torquequeue      = ft_getopt(cfg.distcomp, 'torquequeue',        'batch');
 cfg.distcomp.p2presubdel      = ft_getopt(cfg.distcomp, 'p2presubdel',        60*60*24*3);
+cfg.distcomp.mpctpoolsize     = ft_getopt(cfg.distcomp, 'mpctpoolsize',       []);
+cfg.distcomp.mpctcluster      = ft_getopt(cfg.distcomp, 'mpctcluster',        []);
 if strcmp(cfg.distcomp.system,'p2p') && isempty(cfg.distcomp.p2presubdel)
   error('need to specifiy cfg.distcomp.p2presubdel')
 end
@@ -266,7 +270,7 @@ end
 % Make sure a dimord is present (in case one uses this outside of FT)
 if ~isfield(data,'dimord')
   error(['Input structure needs to contain a dimord field. '...
-         'This field identifies the dimensions in the most important data-containing field. See FieldTrip wiki for further details'])
+    'This field identifies the dimensions in the most important data-containing field. See FieldTrip wiki for further details'])
 end
 
 
@@ -323,6 +327,55 @@ if strcmp(cfg.ncompest,'splithalf')
   end
 end
 
+% distcomp check
+if ~isempty(cfg.distcomp.system)
+  switch cfg.distcomp.system
+    case 'torque'
+      if ~ft_hastoolbox('qsub')
+        error('FieldTrip qsub module needs to be on the path in order to used Torque distributed computing')
+      end
+      
+    case 'matlabpct'
+      if ft_hastoolbox('distcomp')
+        % open pool, always create a new pool to not interfere with concurrent work
+        haspoolsize = ~isempty(cfg.distcomp.mpctpoolsize);
+        hascluster  = ~isempty(cfg.distcomp.mpctcluster);
+        if haspoolsize && ~hascluster
+          if ~verLessThan('matlab','8.2') % parpool is a 2013b function
+            poolobj = parpool(cfg.distcomp.mpctpoolsize);
+          else
+            matlabpool(cfg.distcomp.mpctpoolsize);
+          end
+        elseif ~haspoolsize && hascluster
+          if ~verLessThan('matlab','8.2') % parpool is a 2013b function
+            poolobj = parpool(cfg.distcomp.mpctcluster);
+          else
+            matlabpool(cfg.distcomp.mpctcluster);
+          end
+        elseif haspoolsize && hascluster
+          if ~verLessThan('matlab','8.2') % parpool is a 2013b function
+            poolobj = parpool(cfg.distcomp.mpctcluster,cfg.distcomp.mpctpoolsize);
+          else
+            matlabpool(cfg.distcomp.mpctcluster,cfg.distcomp.mpctpoolsize);
+          end
+        else
+          if ~verLessThan('matlab','8.2')  % parpool is a 2013b function
+            poolobj = parpool;
+          else
+            matlabpool;
+          end
+        end
+      else
+        error('MATLAB Parallel Computing Toolbox needs to be present in order to use it for distributed computing')
+      end
+      
+    case 'p2p'
+      % do nothing
+      
+    otherwise
+      error('specified distributed computing system not supported')
+  end
+end
 
 % disp progress
 disp(['N-way decomposition using ' upper(cfg.model) ' will be performed on ''' cfg.datparam ''''])
@@ -376,9 +429,9 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
       error(['distortion-free scaling of frequency-dependent time-windows lengths over frequency using ft_freqanalysis with method = ' specestmethod ' is not guaranteed'])
     end
     if strcmp(specestmethod,'mtmconvol') && ~isfield(cfg,'fsample')
-      warning(['Your input resulted from ft_freqanalysis with method = mtmconvol. If you''re also using frequency-dependent window-lengths ' ... 
-               'it is highly recommended to supply cfg.fsample, containing the sampling rate of the data in Hz, to correct for ' ...
-               'frequency-dependent distortions of power'])
+      warning(['Your input resulted from ft_freqanalysis with method = mtmconvol. If you''re also using frequency-dependent window-lengths ' ...
+        'it is highly recommended to supply cfg.fsample, containing the sampling rate of the data in Hz, to correct for ' ...
+        'frequency-dependent distortions of power'])
     else
       % disp progress
       disp('applying correction for double scaling in ft_freqanalysis with method = mtmconvol')
@@ -392,10 +445,10 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
       error('crsspctrm must have been computed using keeptrials = yes and keeptapers = no') % this can likely be detected below if it gets implemented
     end
     % failsafe error for if this ever becomes supported in ft_freqananalysis (which it might)
-    if any(any(diff(data.cumtapcnt,1,2))) 
+    if any(any(diff(data.cumtapcnt,1,2)))
       error(['Variable number of tapers over frequency is not supported using output from ft_freqanalysis.'...
-             'In order to do this using a custom ''chan_freq_epoch_tap'' see the tutorial on rhythmic components'...
-             'and the code below this error message.'])
+        'In order to do this using a custom ''chan_freq_epoch_tap'' see the tutorial on rhythmic components'...
+        'and the code below this error message.'])
     end
     % make sure channel cmb representation of data is full in case of crssspctrm
     if strcmp(cfg.datparam,'crssspctrm') % treat crsspctrm as an exception to fourierspctrm in the below
@@ -412,9 +465,9 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     ntrial = size(data.cumtapcnt,1);
     nfreq  = size(data.cumtapcnt,2);
     nchan  = numel(data.label);
-    ntaper = nchan; 
+    ntaper = nchan;
     dat    = complex(NaN(nchan,nfreq,ntrial,ntaper,datprecision),NaN(nchan,nfreq,ntrial,ntaper,datprecision));
-    tapcnt = data.cumtapcnt(:,1); % explicitly only use ntap of first freq due to above 
+    tapcnt = data.cumtapcnt(:,1); % explicitly only use ntap of first freq due to above
     % construct new dat
     for itrial = 1:ntrial
       trialtapind = sum(tapcnt(1:itrial-1))+1:sum(tapcnt(1:itrial-1))+tapcnt(itrial); % ow
@@ -438,7 +491,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
             t_ftimwin     = ft_findcfg(data.cfg,'t_ftimwin');
             timwinnsample = round(t_ftimwin(ifreq) .* cfg.fsample);
             % undo additional the scaling by sqrt(2./ timwinnsample)
-            currfour      = currfour ./ sqrt(2 ./ timwinnsample); 
+            currfour      = currfour ./ sqrt(2 ./ timwinnsample);
           end
           %%%%%%
           % obtain count of time-points and tapers
@@ -447,7 +500,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
           csd = currfour*currfour';
           % correct for number of time-points and tapers (if fourierspctrm, individual tapers and time-points (if mtmconvol) are not aggegrated, enforced above)
           % this step is CRUCIAL if we want to interpret the loadings of the trial profile
-          csd = csd ./ currntimetap; 
+          csd = csd ./ currntimetap;
         else
           currcsd = permute(data.(cfg.datparam)(itrial,:,:,ifreq,:),[2 3 5 1 4]); % will work regardless of time dim presence/absence
           % get rid of NaNs (should always be the same over channel-pairs)
@@ -464,15 +517,15 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
             % reconstruct tinwinsample
             t_ftimwin     = ft_findcfg(out.cfg,'t_ftimwin');
             timwinnsample = round(t_ftimwin(ifreq) .* cfg.fsample);
-            % undo additional the scaling by (sqrt(2./ timwinnsample)).^2 = (2./ timwinnsample) 
+            % undo additional the scaling by (sqrt(2./ timwinnsample)).^2 = (2./ timwinnsample)
             % the scaling is performed on the level of individual taper-specific Fourier coefficients, and currcsd contains the summed cross-products of these
-            currcsd       = currcsd ./ (2 ./ timwinnsample); 
+            currcsd       = currcsd ./ (2 ./ timwinnsample);
           end
           %%%%%%
           % obtain count of time-points (tapers are never kept if crsspctrm, enforced above)
           currntime = size(currcsd,3);
           % obtain csd
-          csd = sum(currcsd,3); 
+          csd = sum(currcsd,3);
           % correct for number of time-points (if crsspctrm, time-points (if mtmconvol) are not aggegrated, but tapers are averaged, enforced above)
           % this step is CRUCIAL if we want to interpret the loadings of the trial profile
           csd = csd ./  currntime; % this is a rather circumstantial way to do this, but is such to keep it similar to above
@@ -502,7 +555,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     % trim dat (actual ntaper can be lower than ntaper, which depends on the data, hence the need for trimming)
     notnan = logical(squeeze(sum(sum(~isnan(squeeze(dat(1,:,:,:))),2),1)));
     dat = dat(:,:,:,notnan);
-    % clear old dat 
+    % clear old dat
     data.(cfg.datparam) = [];
   elseif strcmp(data.dimord,'chan_freq_epoch_tap')
     % Handle output from custom code with dimensions 'chan_freq_epoch_tap'
@@ -524,7 +577,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
         for iepoch = 1:nepoch
           for ifreq = 1:nfreq
             % first, select data and create csd
-            currfour = permute(data.(cfg.datparam)(:,ifreq,iepoch,:),[1 4 2 3]); 
+            currfour = permute(data.(cfg.datparam)(:,ifreq,iepoch,:),[1 4 2 3]);
             % get rid of NaNs (should always be the same over channels)
             currfour(:,isnan(currfour(1,:))) = [];
             % ensure double precision for calculations below
@@ -648,7 +701,7 @@ switch cfg.ncompest
     [ncomp, corcondiagstat] = corcondiag(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, corconval, modelopt{:}); % subfunction
     
     % extract startval if nrand is the same
-    if (nrandestcomp==nrand) && (corcondiagstat.randomstatsucc.convcrit==convcrit) % convcrit is the same as used for randomstart below 
+    if (nrandestcomp==nrand) && (corcondiagstat.randomstatsucc.convcrit==convcrit) % convcrit is the same as used for randomstart below
       startval   = corcondiagstat.randomstatsucc.startvalglobmin;
       randomstat = corcondiagstat.randomstatsucc;
     end
@@ -744,7 +797,14 @@ switch cfg.model
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
+% if pool is present, close it, no longer needed
+if strcmp(cfg.distcomp.system,'matlabpct')
+  if ~verLessThan('matlab','8.2') % parpool is a 2013b function
+    delete(poolobj);
+  else
+    matlabpool close
+  end
+end
 
 % Transform comp to compoment-specific cell-arrays
 outputcomp = cell(1,ncomp);
@@ -798,7 +858,7 @@ end
 
 % Construct output structure
 nwaycomp.label      = data.label;
-nwaycomp.dimord     = dimord; 
+nwaycomp.dimord     = dimord;
 nwaycomp.comp       = outputcomp;
 if any(strcmp(model,{'parafac2','parafac2cp'}))
   nwaycomp.P        = P;
@@ -846,7 +906,7 @@ ft_postamble trackconfig
 ft_postamble provenance
 ft_postamble previous data
 ft_postamble history nwaycomp
-ft_postamble savevar nwaycomp 
+ft_postamble savevar nwaycomp
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1021,7 +1081,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
     degenflg = false;
   end
   
- 
+  
   % get final decompositions for current incomp
   opt = {'niter', niter, 'convcrit', convcrit, 'dispprefix',['corcondiag ncomp = ' num2str(incomp) ': ']};
   switch model
@@ -1073,13 +1133,13 @@ while ~succes % the logic used here is identical as in splithalf, they should be
   
   
   %%%%%%%%%%%%%%%%%%%%%%%%%%
-  %%% determine incomp succes 
+  %%% determine incomp succes
   % Act on critfailflg and degenflg
   disp(['corcondiag: core consistency diagnostic at ncomp = ' num2str(incomp) ' was ' num2str(corcondiag,'%-2.2f')])
   if critfailflg || degenflg
-    % When current incomp fails, decrease incomp. 
-    % Then, incomp-1 has either been performed or not 
-    % If not performed, succes=false and continue. Then, If incomp==0 succes='true'. 
+    % When current incomp fails, decrease incomp.
+    % Then, incomp-1 has either been performed or not
+    % If not performed, succes=false and continue. Then, If incomp==0 succes='true'.
     % If it has been performed, it can only be successful, succes=true. (error check for unsuccesful)
     
     % update fail fields
@@ -1126,16 +1186,16 @@ while ~succes % the logic used here is identical as in splithalf, they should be
     end
     
   else
-    % When current incomp succeeds, increase incomp. 
+    % When current incomp succeeds, increase incomp.
     % Then, incomp+i can either be at the maximum or not.
     % If at the maximum, succes = true.
     % If not at the maximum, increment.
     % Then, there have either been attempts at incomp+i or there have not.
     % If not, increment incomp with stepsize limited by the maximum.
     % If there have been incomp+i's, they can only have failed, and none should be present at incomp+stepsize+i
-    % Check for this. 
+    % Check for this.
     % Then, find the closest fail. If it is incomp+1, succes = true. If not, increment up until max.
-
+    
     % update succes fields and ncompsucc
     t3coresucc     = t3core;
     corcondiagsucc = corcondiag;
@@ -1150,7 +1210,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
       randomstatfail = [];
       failreason = ['corcondiag stopped: reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
-      succes = true;      
+      succes = true;
       ncomp  = incomp;
       
     else % keep on incrementing
@@ -1195,7 +1255,7 @@ disp(['corcondiag: final number of components = ' num2str(ncomp)]);
 
 %
 % FIXME: NO MODEL SPECIFIC COEFFICIENTS HERE YET!!!!
-% FIXME: the below piece of code is shit and should be reimplemented to handle flexible non-linearly increasing not-starting-from-1 ncomp's 
+% FIXME: the below piece of code is shit and should be reimplemented to handle flexible non-linearly increasing not-starting-from-1 ncomp's
 % Calcute cross-ncomp congruence
 % the organization is as follows:
 % crossncomp{i} = all cross-comp calculations started from ncomp = i
@@ -1270,8 +1330,8 @@ corcondiagstat.allcorcondiag   = allcorcondiag;
 corcondiagstat.allrandomstat   = allrandomstat;
 corcondiagstat.ncompsucc       = ncompsucc;
 
-  
-  
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% Subfunction for cfg.ncompest = 'splithalf'             %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1309,7 +1369,7 @@ allrandomstat     = [];
 incomp  = estnum(1);
 succes  = false;
 while ~succes % the logic used here is identical as in corcondiag, they should be changed SIMULTANEOUSLY or both subfunctions should be merged with switches
- 
+  
   disp(['split-half: number of components = ' num2str(incomp) ' of max ' num2str(estnum(2))]);
   disp('split-half: performing decomposition and computing split-half coefficients');
   
@@ -1545,7 +1605,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     end % irandpart2
   end % irandpart1
   
- 
+  
   % check whether any of the combinations of random starts of the partitions pass the splithalf criterion
   % do a splithalf criterion check
   partcombpass = false(size(partcombcompsh));
@@ -1591,17 +1651,17 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   allcompsh{incomp}         = compsh;
   allrandomstat{incomp}{1}  = randomstat1;
   allrandomstat{incomp}{2}  = randomstat2;
-    
+  
   
   
   %%%%%%%%%%%%%%%%%%%%%%%%%%
-  %%% determine incomp succes 
+  %%% determine incomp succes
   % Act on critfailflg and degenflg
   disp(['split-half: lowest relevant absolute split-half coefficient was ' num2str(min(min(compsh(:,estshcritval~=0))))]);
   if critfailflg || degenflg
-    % When current incomp fails, decrease incomp. 
-    % Then, incomp-1 has either been performed or not 
-    % If not performed, succes=false and continue. Then, If incomp==0 succes='true'. 
+    % When current incomp fails, decrease incomp.
+    % Then, incomp-1 has either been performed or not
+    % If not performed, succes=false and continue. Then, If incomp==0 succes='true'.
     % If it has been performed, it can only be successful, succes=true. (error check for unsuccesful)
     
     % update fail fields
@@ -1611,7 +1671,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       randomstat1fail = randomstat1;
       randomstat2fail = randomstat2;
       failreason = 'split-half criterion';
-     elseif degenflg
+    elseif degenflg
       disp('split-half: random initializations for both partitions only returned likely degenerate solutions')
       compshfail = compsh;
       randomstat1fail = randomstat1;
@@ -1648,14 +1708,14 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     end
     
   else
-    % When current incomp succeeds, increase incomp. 
+    % When current incomp succeeds, increase incomp.
     % Then, incomp+i can either be at the maximum or not.
     % If at the maximum, succes = true.
     % If not at the maximum, increment.
     % Then, there have either been attempts at incomp+i or there have not.
     % If not, increment incomp with stepsize limited by the maximum.
     % If there have been incomp+i's, they can only have failed, and none should be present at incomp+stepsize+i
-    % Check for this. 
+    % Check for this.
     % Then, find the closest fail. If it is incomp+1, succes = true. If not, increment up until max.
     
     % update succes fields and ncompsucc
@@ -1672,7 +1732,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       randomstat2fail = [];
       failreason = ['split-half stopped: reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
-      succes = true;      
+      succes = true;
       ncomp  = incomp;
       
     else % keep on incrementing
@@ -1714,11 +1774,11 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
 end % incomp
 disp(['split-half: final number of components = ' num2str(ncomp)]);
 
-   
-  
+
+
 %
 % FIXME: NO MODEL SPECIFIC COEFFICIENTS HERE YET!!!!
-% FIXME: the below piece of code is shit and should be reimplemented to handle flexible non-linearly increasing not-starting-from-1 ncomp's 
+% FIXME: the below piece of code is shit and should be reimplemented to handle flexible non-linearly increasing not-starting-from-1 ncomp's
 % Calcute cross-ncomp congruence
 % the organization is as follows:
 % crossncomp{i} = all cross-comp calculations started from ncomp = i
@@ -1828,104 +1888,175 @@ end
 % start random decompositions
 niter = round(niter); % just to make sure it's an integer
 if ~isempty(distcomp.system)
-  disp([dispprefix 'random start: determining optimal starting values from random initialization']);
-  disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using ' distcomp.system]);
-  
-  % prepare cell arrays for input
-  cellncomp         = repmat({ncomp},[nrand 1]);
-  cellniterkey      = repmat({'niter'},[nrand 1]);
-  cellniterval      = repmat({niter},[nrand 1]);
-  cellconvcritkey   = repmat({'convcrit'},[nrand 1]);
-  cellconvcritval   = repmat({convcrit},[nrand 1]);
-  celldispprefixkey = repmat({'dispprefix'},[nrand 1]);
-  celldispprefixval = repmat({[dispprefix 'random start: ']},[nrand 1]);
-  % create a cell-array containing copys of the data, or save and pass temporary filename 
-  % implemented for all models (file is deleted below)
-  if isnumeric(dat) && ~isempty(distcomp.inputsaveprefix) && ischar(distcomp.inputsaveprefix)
-    % make a random file name
-    rng(sum(clock.*1e6))
-    randname = tempname;
-    filename = [distcomp.inputsaveprefix 'nwaytemp_' randname(end-6:end) '.mat'];
-    % put in cell-array input
-    celldat  = repmat({filename},[nrand 1]);
-    % save data
-    save(filename,'dat','-v7.3')
-  else
-    celldat = repmat({dat},[nrand 1]);
-  end
-  
-  % set up general options
-  opt = {cellniterkey, cellniterval, cellconvcritkey, cellconvcritval, celldispprefixkey, celldispprefixval};
-  if isempty(distcomp.memreq)
-    if ~isnumeric(dat)
-      s = whos('-file', dat);
-    else
-      s = whos('dat');
-    end
-    memreq = s.bytes * 4; % probably enough for the fourier algorithms, probably not for the parafac ones
-  else
-    memreq = distcomp.memreq;
-  end
-  
-  % set up distributed computing specific options
   switch distcomp.system
-    case 'p2p'
-      distcompopt = {'uniformoutput','false','resubmitdelay',distcomp.p2presubdel,'timreq', distcomp.timreq};
-      distcompfun = @peercellfun;
-    case 'torque'
-      % increment timreq (should really be done based on size of data)
-      distcomp.timreq = distcomp.timreq * ceil(ncomp/10);
-      distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'options','-V'};
-      distcompfun = @qsubcellfun;
+   
+    case {'torque','p2p'}
+      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      %%%% QSUB distribution of random initializations
+      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      disp([dispprefix 'random start: determining optimal starting values from random initialization']);
+      disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using ' distcomp.system]);
+      
+      % prepare cell arrays for input
+      cellncomp         = repmat({ncomp},[nrand 1]);
+      cellniterkey      = repmat({'niter'},[nrand 1]);
+      cellniterval      = repmat({niter},[nrand 1]);
+      cellconvcritkey   = repmat({'convcrit'},[nrand 1]);
+      cellconvcritval   = repmat({convcrit},[nrand 1]);
+      celldispprefixkey = repmat({'dispprefix'},[nrand 1]);
+      celldispprefixval = repmat({[dispprefix 'random start: ']},[nrand 1]);
+      % create a cell-array containing copys of the data, or save and pass temporary filename
+      % implemented for all models (file is deleted below)
+      if isnumeric(dat) && ~isempty(distcomp.inputsaveprefix) && ischar(distcomp.inputsaveprefix)
+        % make a random file name
+        rng(sum(clock.*1e6))
+        randname = tempname;
+        filename = [distcomp.inputsaveprefix 'nwaytemp_' randname(end-6:end) '.mat'];
+        % put in cell-array input
+        celldat  = repmat({filename},[nrand 1]);
+        % save data
+        save(filename,'dat','-v7.3')
+      else
+        celldat = repmat({dat},[nrand 1]);
+      end
+      
+      % set up general options
+      opt = {cellniterkey, cellniterval, cellconvcritkey, cellconvcritval, celldispprefixkey, celldispprefixval};
+      if isempty(distcomp.memreq)
+        if ~isnumeric(dat)
+          s = whos('-file', dat);
+        else
+          s = whos('dat');
+        end
+        memreq = s.bytes * 4; % probably enough for the fourier algorithms, probably not for the parafac ones
+      else
+        memreq = distcomp.memreq;
+      end
+      
+      % set up distributed computing specific options
+      switch distcomp.system
+        case 'p2p'
+          distcompopt = {'uniformoutput','false','resubmitdelay',distcomp.p2presubdel,'timreq', distcomp.timreq};
+          distcompfun = @peercellfun;
+        case 'torque'
+          % increment timreq (should really be done based on size of data)
+          distcomp.timreq = distcomp.timreq * ceil(ncomp/10);
+          distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'options','-V'};
+          distcompfun = @qsubcellfun;
+        otherwise
+          error('distributed computing system not supported')
+      end
+      
+      % state current time as que submission time
+      disp(['submitting to queue on: ' datestr(now)])
+      
+      % distribute function calls to peers
+      switch model
+        case 'parafac'
+          cellcompmodeskey  = repmat({'compmodes'},[nrand 1]);
+          cellcompmodesval  = repmat({compmodes},[nrand 1]);
+          [cellcomp,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellcompmodeskey,cellcompmodesval,opt{:},distcompopt{:},'memreq', memreq);
+        case 'parafac2'
+          cellcompmodeskey  = repmat({'compmodes'},[nrand 1]);
+          cellcompmodesval  = repmat({compmodes},[nrand 1]);
+          cellspecmodes     = repmat({specmodes},[nrand 1]);
+          [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellspecmodes,cellcompmodeskey,cellcompmodesval,opt{:},distcompopt{:},'memreq', memreq);
+        case 'parafac2cp'
+          cellcompmodeskey   = repmat({'compmodes'},[nrand 1]);
+          cellcompmodesval   = repmat({compmodes},[nrand 1]);
+          cellspecmodes      = repmat({specmodes},[nrand 1]);
+          cellssqdatnoncpkey = repmat({'ssqdatnoncp'},[nrand 1]);
+          cellssqdatnoncpval = repmat({ssqdatnoncp},[nrand 1]);
+          [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellspecmodes,cellcompmodeskey,cellcompmodesval,cellssqdatnoncpkey,cellssqdatnoncpval,opt{:},distcompopt{:},'memreq', memreq);
+        case 'spacetime'
+          cellfreq = repmat({freq},[nrand 1]);
+          cellDmodekey  = repmat({'Dmode'},[nrand 1]);
+          cellDmodeval  = repmat({Dmode},[nrand 1]);
+          [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellfreq,cellDmodekey,cellDmodeval,opt{:},distcompopt{:},'memreq', memreq);
+        case 'spacefsp'
+          cellDmodekey  = repmat({'Dmode'},[nrand 1]);
+          cellDmodeval  = repmat({Dmode},[nrand 1]);
+          [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellDmodekey,cellDmodeval,opt{:},distcompopt{:},'memreq', memreq);
+        otherwise
+          error('model not yet supported in automatic random starting')
+      end
+      % delete temporary copy of data if it was created
+      if isnumeric(dat) && ~isempty(distcomp.inputsaveprefix) && ischar(distcomp.inputsaveprefix)
+        delete(filename)
+      end
+      
+      % format output to ssqres with output below
+      randssqres    = [cellssqres{:}];
+      randcomp      = cellcomp(:).';
+      randexpvar    = [cellexpvar{:}];
+      randscaling   = cellscaling(:).';
+      randtuckcongr = celltuckcongr(:).';
+      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     
+      
+    case 'matlabpct'  
+      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      %%%% Matlab PARFOR distribution of random initializations
+      % pool is opened and closed by toplevel
+      
+      %%% The below code is identical to local computation specified below except for parfor, keep it as such
+      % allocate
+      randssqres    = zeros(1,nrand);
+      randcomp      = cell(1,nrand);
+      randexpvar    = zeros(1,nrand);
+      randscaling   = cell(1,nrand);
+      randtuckcongr = cell(1,nrand);
+      disp([dispprefix 'random start: determining optimal starting values from random initialization']);
+      % first, gather inputs for each mode (necessary for parfor)
+      % set up general options
+      opt = {'niter', niter, 'convcrit', convcrit};
+      switch model
+        case 'parafac'
+          modelinput = {dat, ncomp, 'compmodes', compmodes, opt{:}};
+        case 'parafac2'
+          modelinput = {dat, ncomp, specmodes, 'compmodes', compmodes, opt{:}};
+        case 'parafac2cp'
+          modelinput = {dat, ncomp, specmodes, 'compmodes', compmodes, opt{:}, 'ssqdatnoncp', ssqdatnoncp};
+        case 'spacetime'
+          modelinput = {dat, ncomp, freq, 'Dmode', Dmode, opt{:}};
+        case 'spacefsp'
+          modelinput = {dat, ncomp, 'Dmode', Dmode, opt{:}};
+        otherwise
+          error('model not yet supported in automatic random starting')
+      end
+      % start distribution
+      disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using MATLABs distributed computing toolbox']);
+      parfor irand = 1:nrand
+        disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' started']);
+        % set up general options
+        opt = {'dispprefix', [dispprefix 'distributed random start ' num2str(irand) ': ']};
+        switch model
+          case 'parafac'
+            [randcomp{irand},    randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+          case 'parafac2'
+            [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+          case 'parafac2cp'
+            [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+          case 'spacetime'
+            [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+          case 'spacefsp'
+            [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+          otherwise
+            error('model not yet supported in automatic random starting')
+        end
+        disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished: error-term = ' num2str(randssqres(irand))]);
+      end
+      
+      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     otherwise
-      error('distributed computing system not supported')
+      error('specified distributed computing system not supported')
   end
   
-  % state current time as que submission time
-  disp(['submitting to queue on: ' datestr(now)])
-  
-  % distribute function calls to peers
-  switch model
-    case 'parafac'
-      cellcompmodeskey  = repmat({'compmodes'},[nrand 1]);
-      cellcompmodesval  = repmat({compmodes},[nrand 1]);
-      [cellcomp,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellcompmodeskey,cellcompmodesval,opt{:},distcompopt{:},'memreq', memreq);
-    case 'parafac2'
-      cellcompmodeskey  = repmat({'compmodes'},[nrand 1]);
-      cellcompmodesval  = repmat({compmodes},[nrand 1]);
-      cellspecmodes     = repmat({specmodes},[nrand 1]);
-      [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellspecmodes,cellcompmodeskey,cellcompmodesval,opt{:},distcompopt{:},'memreq', memreq);
-    case 'parafac2cp'
-      cellcompmodeskey   = repmat({'compmodes'},[nrand 1]);
-      cellcompmodesval   = repmat({compmodes},[nrand 1]);
-      cellspecmodes      = repmat({specmodes},[nrand 1]);
-      cellssqdatnoncpkey = repmat({'ssqdatnoncp'},[nrand 1]);
-      cellssqdatnoncpval = repmat({ssqdatnoncp},[nrand 1]);
-      [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellspecmodes,cellcompmodeskey,cellcompmodesval,cellssqdatnoncpkey,cellssqdatnoncpval,opt{:},distcompopt{:},'memreq', memreq);
-    case 'spacetime'
-      cellfreq = repmat({freq},[nrand 1]);
-      cellDmodekey  = repmat({'Dmode'},[nrand 1]);
-      cellDmodeval  = repmat({Dmode},[nrand 1]);
-      [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellfreq,cellDmodekey,cellDmodeval,opt{:},distcompopt{:},'memreq', memreq);
-    case 'spacefsp'
-      cellDmodekey  = repmat({'Dmode'},[nrand 1]);
-      cellDmodeval  = repmat({Dmode},[nrand 1]);
-      [cellcomp,dum,cellssqres,cellexpvar,cellscaling,celltuckcongr] = feval(distcompfun,['nwaydecomp_' model ],celldat,cellncomp,cellDmodekey,cellDmodeval,opt{:},distcompopt{:},'memreq', memreq);
-    otherwise
-      error('model not yet supported in automatic random starting')
-  end
-  % delete temporary copy of data if it was created
-  if isnumeric(dat) && ~isempty(distcomp.inputsaveprefix) && ischar(distcomp.inputsaveprefix)
-    delete(filename)
-  end
-  
-  % format output to ssqres with output below
-  randssqres    = [cellssqres{:}];
-  randcomp      = cellcomp(:).';
-  randexpvar    = [cellexpvar{:}];
-  randscaling   = cellscaling(:).';
-  randtuckcongr = celltuckcongr(:).';
-else 
+else
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%%% LOCAL compution of random initializations
   % allocate
   randssqres    = zeros(1,nrand);
   randcomp      = cell(1,nrand);
@@ -1958,7 +2089,11 @@ else
     randtuckcongr{irand} = rndtuckcongr;
     disp([dispprefix 'random start ' num2str(irand) ': decomposition of random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished: error-term = ' num2str(rndssqres)]);
   end
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
+
+
 % NaN failsafe
 if any(isnan(randexpvar))
   error('at least one random start result in NaN explained variance, likely cause is input numerical array')
@@ -2178,7 +2313,7 @@ end
 
 % compute cumulative component congruence, between the first random start, the first two, the first three, etc
 % this is done using non-denegerate initializations only
-congrcumul = zeros(numel(initindex),ncomp,nparam); 
+congrcumul = zeros(numel(initindex),ncomp,nparam);
 for iset = 1:numel(initindex)
   ind = initindex(1:iset);
   congrcumul(iset,:,:) = squeeze(nanmean(nanmean(congrallrp(ind,ind,:,:),1),2));
