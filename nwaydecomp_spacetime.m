@@ -1072,6 +1072,11 @@ switch Dmode
   case 'kdepcomplex'
     comp{5} = comp{5}(:,:,sortind);
 end
+for ik = 1:smode(2)
+  for il = 1:smode(3)
+    Pkl{ik,il} = Pkl{ik,il}(:,sortind);
+  end
+end
 disp([dispprefix 'components have been ordered according to magnitude'])
 
 
