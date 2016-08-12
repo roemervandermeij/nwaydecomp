@@ -925,8 +925,8 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
     ssqres   = ssqdat - ssqmodel;
     expvar   = 100 - ((ssqres / ssqdat) * 100);
   else
-    ssqmodel = NaN;
     ssqres   = calcssqressparse(comp,Pkl,F,smode,datforQ,Dmode); % subfunction for calculating ssqres
+    ssqmodel = ssqdat - ssqres;
     expvar   = 100 - ((ssqres / ssqdat) * 100);
   end
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -999,9 +999,13 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
   
   
   % Display results of current iteration
+  if holdparam(4) == 0
   disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
     ' - NR-steps: ' num2str(mean(cpnewtloops),'%-2.1f') ' ('  num2str(std(cpnewtloops),'%-2.1f') ') | ', ...
-    'LS-steps: ' num2str(mean(cplsloops),'%-2.1f')   ' ('  num2str(std(cplsloops),'%-2.1f')   ') | sigma-nu/uf/ni: ' num2str(sum(~sigupdsuc(:)),'%-4.0f')  '/' num2str(sigupdfail,'%-4.0f')  '/' num2str(sigupdsame,'%-4.0f') ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
+       'LS-steps: ' num2str(mean(cplsloops),'%-2.1f')   ' ('  num2str(std(cplsloops),'%-2.1f')   ') | sigma-nu/uf/ni: ' num2str(sum(~sigupdsuc(:)),'%-4.0f')  '/' num2str(sigupdfail,'%-4.0f')  '/' num2str(sigupdsame,'%-4.0f') ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
+  else
+      disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel) ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
+  end
   if prevssqres<ssqres && iter>1
     disp(['iteration ' num2str(iter) ' - warning: moved away from solution, ssqres increased by ' num2str(ssqres-prevssqres) ' and ' num2str(((ssqres-prevssqres)/prevssqres)*100) '%'])
     warning('Moved away from solution, something went horribly wrong. Restoring previous best estimate and stopping algorithm')

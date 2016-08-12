@@ -1,4 +1,4 @@
-function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spacefsp(dat,ncomp,varargin)
+function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core,Pkl] = nwaydecomp_spacefsp(dat,ncomp,varargin)
 
 % NWAYDECOMP_SPACEFSP is a low-level function for nd_nwaydecomposition and is used
 % to perform a decomposition of Fourier coefficients over space, frequency, epochs, and tapers,
@@ -826,8 +826,8 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
     ssqres   = ssqdat - ssqmodel;
     expvar   = 100 - ((ssqres / ssqdat) * 100);
   else
-    ssqmodel = NaN;
     ssqres   = calcssqressparse(comp,Pkl,smode,datforQ,Dmode); % subfunction for calculating ssqres
+    ssqmodel = ssqdat - ssqres;
     expvar   = 100 - ((ssqres / ssqdat) * 100);
   end
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -902,9 +902,14 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
   % Display results of current iteration
   switch optimmode
     case 'ndimensional'
-      disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
-        ' - NR-steps: ' num2str(mean(cpnewtloops),'%-2.1f') ' ('  num2str(std(cpnewtloops),'%-2.1f') ') | ', ...
-        'LS-steps: ' num2str(mean(cplsloops),'%-2.1f')   ' ('  num2str(std(cplsloops),'%-2.1f')   ') | lambda-nu/uf/ni: ' num2str(sum(~lambupdsuc(:)),'%-4.0f')  '/' num2str(lambupdfail,'%-4.0f')  '/' num2str(lambupdsame,'%-4.0f') ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
+      if holdparam(4) == 0
+        disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
+          ' - NR-steps: ' num2str(mean(cpnewtloops),'%-2.1f') ' ('  num2str(std(cpnewtloops),'%-2.1f') ') | ', ...
+          'LS-steps: ' num2str(mean(cplsloops),'%-2.1f')   ' ('  num2str(std(cplsloops),'%-2.1f')   ') | lambda-nu/uf/ni: ' num2str(sum(~lambupdsuc(:)),'%-4.0f')  '/' num2str(lambupdfail,'%-4.0f')  '/' num2str(lambupdsame,'%-4.0f') ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
+      else
+        disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
+          ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
+      end
     case {'singlecomppairals','singlecomp'}
       disp([dispprefix 'iteration ' num2str(iter) ' - expvar: ' num2str(expvar,'%-2.1f')   '%  ssqres: ' num2str(ssqres)  '  ssqmodel: ' num2str(ssqmodel),...
         ' | max tuckcongr: ' num2str(max(tuckcongr),'%-2.3f') ])
