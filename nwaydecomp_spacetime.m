@@ -375,11 +375,13 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
   % Perform linear search every X iterations if relative ssqres increase is smaller than 10% (from the perspective of the previous iteration)
   if rem((iter-1),3) == 0 && ((prevssqres / ssqres) <= 1.10) && (((iter-1)^1/3) >= 2) && (iter < (niter-2))
     [comp,ssqres] = linsearch(datforQ,comp,prevcomp,F,smode,iter-1,prevssqres,ssqres,dispprefix,Dmode,holdparam,sigmacirc); % subfunction for performing linear search
-    % normalize all signs and lambda
+    % normalize all signs, norms
     comp = normalizecomp(comp,'signA',[],smodey,[],[],0,dispprefix,Dmode);
     comp = normalizecomp(comp,'signB',[],smodey,[],[],0,dispprefix,Dmode);
     comp = normalizecomp(comp,'signC',[],smodey,[],[],0,dispprefix,Dmode);
     [comp,Pkl] = normalizecomp(comp,'allsignBC',[],smodey,[],Pkl,0,dispprefix,Dmode);
+    comp = normalizecomp(comp,'normA',[],smodey,[],[],0,dispprefix,Dmode);
+    comp = normalizecomp(comp,'normB',[],smodey,[],[],0,dispprefix,Dmode);
   end
   
   % Set previous stuff (important for e.g. linear search in next iteration)
@@ -838,6 +840,9 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
     % Update C
     % by doing regular PARAFAC ALS
     
+    % move norm over to A
+    comp = normalizecomp(comp,'normC',[],smodey,[],[],0,dispprefix,Dmode);
+    
     % Calculate Z
     currA = comp{1};
     currB = comp{2};
@@ -871,6 +876,8 @@ while (abs((ssqres - prevssqres) / prevssqres) > convcrit) && (iter < niter) && 
     comp{3} = C;
     % normalize signC
     comp = normalizecomp(comp,'signC',[],smodey,[],[],0,dispprefix,Dmode);
+    % put back norm in C
+    comp = normalizecomp(comp,'normA',[],smodey,[],[],0,dispprefix,Dmode);
     %%%%%%%%%%%%%
   end
   
@@ -1377,6 +1384,22 @@ if strcmp(normmode,'normB')
   % save B and C
   comp{2} = B;
   comp{3} = C;
+end
+%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%
+if strcmp(normmode,'normC')
+  % normalize C onto A
+  C = comp{3};
+  A = comp{1};
+  % get norm, remove from C and apply to A
+  normC = sqrt(sum(abs(C).^2,1));
+  C = C ./ repmat(normC,[smodey(3) 1]);
+  A = A .* repmat(normC,[smodey(1) 1]);
+  % save C and A
+  comp{3} = C;
+  comp{1} = A;
 end
 %%%%%%%%%%%%%
 
@@ -2157,7 +2180,7 @@ for ik = 1:smode(2)
     
     % calculate Qkl
     Qkl = currdatforQ' * ZforQ;
-    % calculate Pk
+    % calculate Pkl
     [U,S,V] = svd(Qkl,'econ');
     currP = U*V';
     
