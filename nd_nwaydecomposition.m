@@ -707,9 +707,14 @@ switch cfg.ncompest
     [ncomp, splitrelstat] = splitrel(model, dat, datsplit, nrandestcomp, estnum, estsrcritval, niter, convcrit, degencrit, distcomp, oldsplithalf, modelopt{:}); % subfunction
         
     % extract startval if nrand is the same
-    if ~oldsplithalf && (nrandestcomp==nrand) && (splitrelstat.randomstatsucc.convcrit==convcrit) % convcrit is the same as used for randomstart below
-      startval   = splitrelstat.randomstatsucc.startvalglobmin;
-      randomstat = splitrelstat.randomstatsucc;
+    if ~oldsplithalf && (nrandestcomp==nrand) 
+      if ~isempty(splitrelstat.randomstatfullsucc)
+        startval   = splitrelstat.randomstatfullsucc.startvalglobmin;
+        randomstat = splitrelstat.randomstatfullsucc;
+      else
+        startval   = splitrelstat.randomstatfullfail.startvalglobmin;
+        randomstat = splitrelstat.randomstatfullfail;
+      end
     end
     
   case 'degeneracy'
@@ -728,9 +733,14 @@ switch cfg.ncompest
     [ncomp, corcondiagstat] = corcondiag(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, corconval, modelopt{:}); % subfunction
     
     % extract startval if nrand is the same
-    if (nrandestcomp==nrand) && (corcondiagstat.randomstatsucc.convcrit==convcrit) % convcrit is the same as used for randomstart below
-      startval   = corcondiagstat.randomstatsucc.startvalglobmin;
-      randomstat = corcondiagstat.randomstatsucc;
+    if (nrandestcomp==nrand)
+      if ~isempty(corcondiagstat.randomstatsucc)
+        startval   = corcondiagstat.randomstatsucc.startvalglobmin;
+        randomstat = corcondiagstat.randomstatsucc;
+      else
+        startval   = corcondiagstat.randomstatfail.startvalglobmin;
+        randomstat = corcondiagstat.randomstatfail;
+      end
     end
     
   case 'no'
@@ -1100,10 +1110,10 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
   
   
   % see if there are any non-degenerate start values and set flag if otherwise
-  if length(randomstat.degeninit)==nrand
+  if numel(randomstat.degeninit)==nrand
     % try again with another round
     [startval, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['corcondiag ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
-    if length(randomstat.degeninit)==nrand
+    if numel(randomstat.degeninit)==nrand
       degenflg = true;
     else
       degenflg = false; % good to go
@@ -1354,7 +1364,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   % Get decompositions for current incomp
   % for the full data
   if newsplitrel
-    [dum, randomstatfull] = randomstart(model, datfull, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability, full data, ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [dum, randomstatfull] = randomstart(model, datfull, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability - full data  ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
   else
     %%% backwards compatability per August 2016 for oldsplithalf
     dum            = [];
@@ -1364,15 +1374,15 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   % for the splits
   randomstatsplit = cell(1,nsplit);
   for isplit = 1:nsplit
-    [dum, randomstatsplit{isplit}] = randomstart(model, datsplit{isplit}, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability part ' num2str(isplit) '/' num2str(nsplit) '  ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+    [dum, randomstatsplit{isplit}] = randomstart(model, datsplit{isplit}, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability - part ' num2str(isplit) '/' num2str(nsplit) '  ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
   end
   
   % see if there are any non-degenerate start values for the full data and set flag if otherwise (and try again if it only goes for one partition)
   if newsplitrel
-    degenflg = randomstatsplitfull.degeninit==nrand;
+    degenflg = numel(randomstatfull.degeninit)==nrand;
     if degenflg % try again
-      [dum, randomstatfull] = randomstart(model, datfull, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability, full data, ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
-      degenflg = randomstatsplitfull.degeninit==nrand;
+      [dum, randomstatfull] = randomstart(model, datfull, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability - full data  ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
+      degenflg = numel(randomstatfull.degeninit)==nrand;
     end
   else
     degenflg = false;
@@ -1382,7 +1392,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   if ~degenflg % only continue if the full data had nondegenerate start values
     degencnt = 0;
     for isplit = 1:nsplit
-      degencnt = degencnt + (randomstatsplit{isplit}.degeninit==nrand);
+      degencnt = degencnt + (numel(randomstatsplit{isplit}.degeninit)==nrand);
     end
     if degencnt == nsplit
       degenflg = true;
@@ -1390,9 +1400,9 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       degencnt = 0;
       for isplit = 1:nsplit
         if randomstatsplit{isplit}.degeninit == nrand
-          [dum, randomstatsplit{isplit}] = randomstart(model, datsplit{isplit}, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability part ' num2str(isplit) '/' num2str(nsplit) '  ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
+          [dum, randomstatsplit{isplit}] = randomstart(model, datsplit{isplit}, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability - part ' num2str(isplit) '/' num2str(nsplit) '  ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
         end
-        degencnt = degencnt + (randomstatsplit{isplit}.degeninit==nrand);
+        degencnt = degencnt + (numel(randomstatsplit{isplit}.degeninit)==nrand);
       end
       % check degeneracy again
       if degencnt>0
@@ -1656,11 +1666,13 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     if ~degenflg
       disp(['split-reliability: one or more components did not reach split-reliability criterion of ' num2str(estsrccritval)]);
       compsrcfail         = compsrc;
+      randomstatfullfail  = randomstatfull;
       randomstatsplitfail = randomstatsplit;
       stopreason          = 'split-reliability criterion';
     elseif degenflg
       disp('split-reliability: random initializations only returned likely degenerate solutions')
       compsrcfail         = compsrc;
+      randomstatfullfail  = randomstatfull;
       randomstatsplitfail = randomstatsplit;
       stopreason          = 'degeneracy';
     end
@@ -1675,6 +1687,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       succes              = true;
       ncomp               = 1;
       compsrcsucc         = [];
+      randomstatfullsucc  = [];
       randomstatsplitsucc = [];
       stopreason          = 'split-reliability criterion fail at ncomp = 1';
       break
@@ -1705,6 +1718,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     
     % update succes fields and ncompsucc
     compsrcsucc         = compsrc;
+    randomstatfullsucc  = randomstatfull;
     randomstatsplitsucc = randomstatsplit;
     ncompsucc{incomp}   = true;
     
@@ -1712,6 +1726,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     if incomp==estnum(2)
       disp(['split-reliability: succesfully reached a priori determined maximum of ' num2str(estnum(2)) ' components']);
       compsrcfail         = [];
+      randomstatfullfail  = [];
       randomstatsplitfail = [];
       stopreason          = ['reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
@@ -1763,6 +1778,8 @@ if newsplitrel
   splitrelstat.ncomp               = ncomp;
   splitrelstat.splitrelcsucc       = compsrcsucc;
   splitrelstat.splitrelcfail       = compsrcfail;
+  splitrelstat.randomstatfullsucc  = randomstatfullsucc;
+  splitrelstat.randomstatfullfail  = randomstatfullfail;
   splitrelstat.randomstatsplitsucc = randomstatsplitsucc;
   splitrelstat.randomstatsplitfail = randomstatsplitfail;
   splitrelstat.stopreason          = stopreason;
