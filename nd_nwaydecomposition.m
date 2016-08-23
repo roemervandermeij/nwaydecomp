@@ -94,7 +94,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %      Algorithm specific options:
 %        PARAFAC/2(CP)
 %   cfg.complexdims          = vector of 0's and 1's with length equal to number of dimensions in data, indicating dimensions to keep complex
-%                              (default = [0 for each dimension])
+%                              (default = 0/1 for each dimension if real/complex)
 %        PARAFAC2(CP)
 %   cfg.specialdims          = vector with length equal to ndims(dat) with 1, 2 and 3
 %                              indicating special modes: 1: outer dim of inner-product                     (i.e. the utility dims)   (ndim-2 dims must be this)
@@ -275,13 +275,21 @@ if ~isnumeric(data.(cfg.datparam))
   if ~any(strcmp(filevars.class,{'single','double'}))
     error('array in data filename needs to be a numeric single or double array')
   end
-  ndimsdat = numel(filevars.size);
+  ndimsdat     = numel(filevars.size);
+  datprecision = filevars.class;
+  datcomplex   = filevars.complex;
 else
   if ~isfloat(data.(cfg.datparam))
     error('field specified by cfg.datparam needs to contain a numeric single or double array')
   end
   ndimsdat     = ndims(data.(cfg.datparam));
   datprecision = class(data.(cfg.datparam));
+  datcomplex   = ~isreal(data.(cfg.datparam));
+end
+
+% default options for parafac/parafac2/parafac2cp
+if strncmp(cfg.model,'parafac',7) && isempty(cfg.complexdims)
+  cfg.complexdims = ones(1,ndimsdat) .* datcomplex;
 end
 
 % Make sure a dimord is present (in case one uses this outside of FT)
@@ -578,6 +586,9 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
     % Handle output from custom code with dimensions 'chan_freq_epoch_tap'
     % disp progress
     disp('input for SPACE is the result of custom code')
+    if ndimsdat~=4 || ~datcomplex
+      error('input for SPACE needs to be complex-valued and have 4 dimensions organized as ''chan_freq_epoch_tap''')
+    end
     if ~isnumeric(data.(cfg.datparam))
       warning('not attempting memory and computation time optimization because data is specified as filename')
     else
