@@ -1179,13 +1179,13 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
       t3corefail     = t3core;
       corcondiagfail = corcondiag;
       randomstatfail = randomstat;
-      failreason = 'core consistency diagnostic';
+      stopreason = 'core consistency diagnostic';
     elseif degenflg
       disp('corcondiag: random initializations only returned likely degenerate solutions')
       t3corefail     = []; % no t3core is computed
       corcondiagfail = []; % no t3core, so no corcondiag
       randomstatfail = randomstat;
-      failreason     = 'degeneracy';
+      stopreason     = 'degeneracy';
     end
     ncompsucc{incomp} = false;
     % decrease incomp by 1
@@ -1200,7 +1200,7 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
       t3coresucc     = [];
       corcondiagsucc = [];
       randomstatsucc = [];
-      failreason = 'core consistency diagnostic criterion fail at ncomp = 1';
+      stopreason = 'core consistency diagnostic criterion fail at ncomp = 1';
       break
     end
     
@@ -1239,7 +1239,7 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
       t3corefail     = [];
       corcondiagfail = [];
       randomstatfail = [];
-      failreason = ['corcondiag stopped: reached a priori maximum of ' num2str(estnum(2)) ' components'];
+      stopreason = ['corcondiag stopped: reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
       succes = true;
       ncomp  = incomp;
@@ -1291,7 +1291,7 @@ corcondiagstat.t3coresucc      = t3coresucc;
 corcondiagstat.t3corefail      = t3corefail;
 corcondiagstat.randomstatsucc  = randomstatsucc;
 corcondiagstat.randomstatfail  = randomstatfail;
-corcondiagstat.failreason      = failreason;
+corcondiagstat.stopreason      = stopreason;
 corcondiagstat.crosscompcongr  = [];
 corcondiagstat.allcomp         = allcomp;
 corcondiagstat.allt3core       = allt3core;
@@ -1424,12 +1424,12 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   nndegenrandsplit = NaN(1,nsplit);
   splitcomp        = cell(1,nsplit);
   for isplit = 1:nsplit
-    splitcomp(isplit)        = randomstatsplit{isplit}.startvalall(setdiff(1:nrand,randomstatsplit{isplit}.degeninit));
+    splitcomp{isplit}        = randomstatsplit{isplit}.startvalall(setdiff(1:nrand,randomstatsplit{isplit}.degeninit));
     nndegenrandsplit(isplit) = numel(splitcomp{isplit});
   end
    
   % compute splitrel coeffcients for all possible pairs of random starts from the splits with the main
-  partcombcompsrc = cell(nsplit);
+  partcombcompsrc = cell(1,nsplit);
   for isplit = 1:nsplit
     compsrc = NaN(incomp,numel(splitcomp{1})); % NaN in case of degenflg and the below is not executed
     partcombcompsrc{isplit} = cell(nndegenrandfull,nndegenrandsplit(isplit));
@@ -1657,12 +1657,12 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       disp(['split-reliability: one or more components did not reach split-reliability criterion of ' num2str(estsrccritval)]);
       compsrcfail         = compsrc;
       randomstatsplitfail = randomstatsplit;
-      failreason          = 'split-reliability criterion';
+      stopreason          = 'split-reliability criterion';
     elseif degenflg
       disp('split-reliability: random initializations only returned likely degenerate solutions')
       compsrcfail         = compsrc;
       randomstatsplitfail = randomstatsplit;
-      failreason          = 'degeneracy';
+      stopreason          = 'degeneracy';
     end
     ncompsucc{incomp} = false;
     % decrease incomp by 1
@@ -1676,7 +1676,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       ncomp               = 1;
       compsrcsucc         = [];
       randomstatsplitsucc = [];
-      failreason          = 'split-reliability criterion fail at ncomp = 1';
+      stopreason          = 'split-reliability criterion fail at ncomp = 1';
       break
     end
     
@@ -1713,7 +1713,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       disp(['split-reliability: succesfully reached a priori determined maximum of ' num2str(estnum(2)) ' components']);
       compsrcfail         = [];
       randomstatsplitfail = [];
-      failreason          = ['reached a priori maximum of ' num2str(estnum(2)) ' components'];
+      stopreason          = ['reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
       succes = true;
       ncomp  = incomp;
@@ -1765,7 +1765,7 @@ if newsplitrel
   splitrelstat.splitrelcfail       = compsrcfail;
   splitrelstat.randomstatsplitsucc = randomstatsplitsucc;
   splitrelstat.randomstatsplitfail = randomstatsplitfail;
-  splitrelstat.failreason          = failreason;
+  splitrelstat.stopreason          = stopreason;
   splitrelstat.allcompsrc          = allcompsrc;
   splitrelstat.allpartcombcompsrc  = allpartcombcompsrc;
   splitrelstat.allrandomstatfull   = allrandomstatfull;
@@ -1773,13 +1773,31 @@ if newsplitrel
 else
   %%% backwards compatability per August 2016 for oldsplithalf
   splitrelstat.ncomp             = ncomp;
-  splitrelstat.splithcsucc       = compsrcsucc(:,:,2); % first is between split1 and split1, 2 is between split1 and split2
-  splitrelstat.splithcfail       = compsrcfail(:,:,2); % first is between split1 and split1, 2 is between split1 and split2 
-  splitrelstat.randomstat1succ   = randomstatsplitsucc{1};
-  splitrelstat.randomstat2succ   = randomstatsplitsucc{2};
-  splitrelstat.randomstat1fail   = randomstatsplitfail{1};
-  splitrelstat.randomstat2fail   = randomstatsplitfail{2};
-  splitrelstat.failreason        = failreason;
+  if isempty(compsrcsucc)
+    splitrelstat.splithcsucc     = [];
+  else
+    splitrelstat.splithcsucc     = compsrcsucc(:,:,2); % first is between split1 and split1, 2 is between split1 and split2
+  end
+  if isempty(compsrcfail)
+    splitrelstat.splithcfail     = []; % first is between split1 and split1, 2 is between split1 and split2
+  else
+    splitrelstat.splithcfail     = compsrcfail(:,:,2); % first is between split1 and split1, 2 is between split1 and split2
+  end
+  if isempty(compsrcsucc)
+    splitrelstat.randomstat1succ = [];
+    splitrelstat.randomstat2succ = [];
+  else
+    splitrelstat.randomstat1succ = randomstatsplitsucc{1};
+    splitrelstat.randomstat2succ = randomstatsplitsucc{2};
+  end
+  if isempty(compsrcfail)
+    splitrelstat.randomstat1fail = [];
+    splitrelstat.randomstat2fail = [];
+  else
+    splitrelstat.randomstat1fail = randomstatsplitfail{1};
+    splitrelstat.randomstat2fail = randomstatsplitfail{2};
+  end
+  splitrelstat.failreason        = stopreason;
   splitrelstat.allcomp           = [];
   splitrelstat.allrandomstat     = allrandomstatsplit;
   splitrelstat.allcompsh         = allcompsrc;
