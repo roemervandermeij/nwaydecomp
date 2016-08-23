@@ -1097,9 +1097,9 @@ allt3core     = [];
 allcorcondiag = [];
 allrandomstat = [];
 ncompsucc     = [];
-incomp  = estnum(1);
-succes  = false;
-while ~succes % the logic used here is identical as in splitrel, they should be changed SIMULTANEOUSLY or both subfunctions should be merged with switches
+incomp        = estnum(1);
+ncompfound    = false;
+while ~ncompfound % the logic used here is identical as in splitrel, they should be changed SIMULTANEOUSLY or both subfunctions should be merged with switches
   disp(['corcondiag: number of components = ' num2str(incomp) ' of max ' num2str(estnum(2))]);
   disp('corcondiag: performing decomposition');
   
@@ -1171,17 +1171,22 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
     critfailflg = false;
   end
   
-  
-  
+    
   %%%%%%%%%%%%%%%%%%%%%%%%%%
   %%% determine incomp succes
   % Act on critfailflg and degenflg
   disp(['corcondiag: core consistency diagnostic at ncomp = ' num2str(incomp) ' was ' num2str(corcondiag,'%-2.2f')])
   if critfailflg || degenflg
+    %%%%% FAIL
+    
     % When current incomp fails, decrease incomp.
-    % Then, incomp-1 has either been performed or not
-    % If not performed, succes=false and continue. Then, If incomp==0 succes='true'.
-    % If it has been performed, it can only be successful, succes=true. (error check for unsuccesful)
+    % If incomp = 1, stop procedure
+    % If not, then either a previous incomp has been performed or not
+    % If so, they should have been a success. Check this.
+    % If not, set incomp to round(incomp/2)
+    % If yes, then it was either incomp-1 or not
+    % If incomp-1 was performed, set incomp to incomp-1 and stop procedure
+    % If incomp-1 has not been performed, find closest success. Set new incomp to the point haldway
     
     % update fail fields
     if ~degenflg
@@ -1198,35 +1203,46 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
       stopreason     = 'degeneracy';
     end
     ncompsucc{incomp} = false;
-    % decrease incomp by 1
-    incomp = incomp-1; % the code below requires this step to be one (succ fields are always at the highest ncomp)
     
-    % check for incomp == 0
-    if incomp == 0
+    % check for incomp == 1
+    if incomp == 1
       warning('corcondiag: NO COMPONENTS REACHED CORE CONSISTENCY DIAGNOSTIC CRITERION');
       % set 'succes' status and final number of components
-      succes = true;
-      ncomp  = 1;
+      ncompfound     = true;
+      ncomp          = 1;
       t3coresucc     = [];
       corcondiagsucc = [];
       randomstatsucc = [];
       stopreason = 'core consistency diagnostic criterion fail at ncomp = 1';
-      break
-    end
-    
-    % check for new incomp already performed and stop accordingly
-    if ~isempty(ncompsucc{incomp})
-      if ncompsucc{incomp}
-        % set succes status and final number of components
-        succes = true;
-        ncomp  = incomp;
-      elseif ~ncompsucc{incomp}
+ 
+    else % find a new incomp
+      
+      % first, sanity check
+      if any(~[ncompsucc{1:incomp-1}])
         % this should not be possible
         error('unexpected error in ncomp estimation')
       end
+      
+      % find closest previous incomp
+      prevsucc = find(~cellfun(@isempty,ncompsucc(1:incomp-1)),1,'last');
+      if isempty(prevsucc)
+        % no previous successes found, set new incomp to halfway to 0
+        incomp = round(incomp/2);
+      else
+        % previous success found, determine new incomp based on prevsucc
+        % if prevsucc is incomp-1, stop procedure
+        if prevsucc == (incomp-1)
+          ncomp      = incomp-1;
+          ncompfound = true;
+        else
+          % if not, set new incomp to point in between prevsucc and incomp
+          incomp = prevsucc + round((incomp-prevsucc)/2); % the increase is always at least one, as the diff between prevsucc and incomp is always >1
+        end
+      end
     end
-    
   else
+    %%%%% SUCCESS
+    
     % When current incomp succeeds, increase incomp.
     % Then, incomp+i can either be at the maximum or not.
     % If at the maximum, succes = true.
@@ -1235,7 +1251,7 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
     % If not, increment incomp with stepsize limited by the maximum.
     % If there have been incomp+i's, they can only have failed, and none should be present at incomp+stepsize+i
     % Check for this.
-    % Then, find the closest fail. If it is incomp+1, succes = true. If not, increment up until max.
+    % Then, find the closest fail. If it is incomp+1, succes = true. If not, increment with half the distances to the closest fail.
     
     % update succes fields and ncompsucc
     t3coresucc     = t3core;
@@ -1243,7 +1259,7 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
     randomstatsucc = randomstat;
     ncompsucc{incomp} = true;
     
-    % check whether maximum has been reached, and increment incomp intelligently otherwise
+    % check whether maximum has been reached, and increment incomp otherwise
     if incomp==estnum(2)
       disp(['corcondiag: succesfully reached a priori determined maximum of ' num2str(estnum(2)) ' components']);
       t3corefail     = [];
@@ -1251,38 +1267,34 @@ while ~succes % the logic used here is identical as in splitrel, they should be 
       randomstatfail = [];
       stopreason = ['corcondiag stopped: reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
-      succes = true;
-      ncomp  = incomp;
+      ncomp      = incomp;
+      ncompfound = true;
       
     else % keep on incrementing
-      % check for previous fails at incomp+
-      if isempty(ncompsucc(incomp+1:end))
-        % no previous incomp+ solutions found, increment incomp with step (and check for ncompestend)
+      % check for solutions at incomp+
+      if isempty([ncompsucc{incomp+1:end}])
+        % no incomp+ solutions found, increment incomp with step (and check for ncompestend)
         incomp = min(incomp + estnum(3),estnum(2));
         
       else
-        % sanity check
+        % incomp+ fails detected
+        % first, sanity check
         if any([ncompsucc{incomp+1:end}])
           % incomp+i should never be successful
           error('unexpected error in ncomp estimation')
         end
+        
+        % find closest fail
+        nextfail = incomp + find(~cellfun(@isempty,ncompsucc(incomp+1:end)),1);
+        
         % incomp+i found, check whether next ncomp was failing
-        if ncompsucc{incomp+1}==0
+        if nextfail == (incomp+1)
           % next ncomp failed, set succes status for current
-          succes = true;
-          ncomp  = incomp;
+          ncomp      = incomp;
+          ncompfound = true;
         else
-          % next incomp was not the fail, find closest after that (depends on estnum(3))
-          found = false;
-          while ~found
-            if isempty(ncompsucc{incomp+1})
-              incomp = incomp+1;
-            else
-              found = true;
-            end
-          end
-          % correct for ncompestend (because of check for ncompestend above, the correct incomp will never have been tested)
-          incomp = min(incomp,estnum(3));
+          % next incomp was not the fail, pick the point halfway to the next fail
+          incomp = incomp + round((nextfail-incomp)./2);
         end
       end
     end
@@ -1354,8 +1366,8 @@ allpartcombcompsrc = [];
 allrandomstatsplit = [];
 allrandomstatfull  = [];
 incomp  = estnum(1);
-succes  = false;
-while ~succes % the logic used here is identical as in corcondiag, they should be changed SIMULTANEOUSLY or both subfunctions should be merged with switches
+ncompfound  = false;
+while ~ncompfound % the logic used here is identical as in corcondiag, they should be changed SIMULTANEOUSLY or both subfunctions should be merged with switches
   
   disp(['split-reliability: number of components = ' num2str(incomp) ' of max ' num2str(estnum(2))]);
   disp('split-reliability: performing decomposition and computing split-half coefficients');
@@ -1441,7 +1453,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   % compute splitrel coeffcients for all possible pairs of random starts from the splits with the main
   partcombcompsrc = cell(1,nsplit);
   for isplit = 1:nsplit
-    compsrc = NaN(incomp,numel(splitcomp{1})); % NaN in case of degenflg and the below is not executed
+    compsrc = NaN(incomp,numel(splitcomp{1}{1})); % NaN in case of degenflg and the below is not executed
     partcombcompsrc{isplit} = cell(nndegenrandfull,nndegenrandsplit(isplit));
     for irandfull = 1:nndegenrandfull
       for irandsplit = 1:nndegenrandsplit(isplit)
@@ -1632,7 +1644,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     end
     
     % pick best possible compsrc to pass on, determine 'best' by highest minimal value
-    compsrc = NaN([size(compsrc) nsplit]);
+    compsrc = NaN([incomp numel(splitcomp{1}{1}) nsplit]);
     for isplit = 1:nsplit
       maxminsrccoeff = cellfun(@min,cellfun(@min,partcombcompsrc{isplit},'uniformoutput',0));
       [dum maxind] = max(maxminsrccoeff(:));
@@ -1657,10 +1669,16 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   % Act on critfailflg and degenflg
   disp(['split-reliability: lowest relevant absolute split-reliability coefficient were ' num2str(min(min(compsrc(:,estsrccritval~=0,:))),'% .2f')]);
   if critfailflg || degenflg
+    %%%%% FAIL
+    
     % When current incomp fails, decrease incomp.
-    % Then, incomp-1 has either been performed or not
-    % If not performed, succes=false and continue. Then, If incomp==0 succes='true'.
-    % If it has been performed, it can only be successful, succes=true. (error check for unsuccesful)
+    % If incomp = 1, stop procedure
+    % If not, then either a previous incomp has been performed or not
+    % If so, they should have been a success. Check this.
+    % If not, set incomp to round(incomp/2)
+    % If yes, then it was either incomp-1 or not
+    % If incomp-1 was performed, set incomp to incomp-1 and stop procedure
+    % If incomp-1 has not been performed, find closest success. Set new incomp to the point haldway
     
     % update fail fields
     if ~degenflg
@@ -1677,35 +1695,46 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       stopreason          = 'degeneracy';
     end
     ncompsucc{incomp} = false;
-    % decrease incomp by 1
-    incomp = incomp-1; % the code below requires this step to be one (succ fields are always at the highest ncomp)
     
-    % check for incomp == 0
-    if incomp == 0
+    % check for incomp == 1
+    if incomp == 1
       warning('split-reliability: NO COMPONENTS REACHED SPLIT-RELIABILITY CRITERION');
       % set 'succes' status and final number of components
-      succes              = true;
+      ncompfound         = true;
       ncomp               = 1;
       compsrcsucc         = [];
       randomstatfullsucc  = [];
       randomstatsplitsucc = [];
       stopreason          = 'split-reliability criterion fail at ncomp = 1';
-      break
-    end
-    
-    % check for new incomp already performed and stop accordingly
-    if ~isempty(ncompsucc{incomp})
-      if ncompsucc{incomp}
-        % set succes status and final number of components
-        succes = true;
-        ncomp  = incomp;
-      elseif ~ncompsucc{incomp}
+      
+    else % find a new incomp
+     
+      % first, sanity check
+      if any(~[ncompsucc{1:incomp-1}])
         % this should not be possible
         error('unexpected error in ncomp estimation')
       end
+      
+      % find closest previous incomp
+      prevsucc = find(~cellfun(@isempty,ncompsucc(1:incomp-1)),1,'last');
+      if isempty(prevsucc)
+        % no previous successes found, set new incomp to halfway to 0
+        incomp = round(incomp/2);
+      else
+        % previous success found, determine new incomp based on prevsucc
+        % if prevsucc is incomp-1, stop procedure
+        if prevsucc == (incomp-1)
+          ncomp      = incomp-1;
+          ncompfound = true;
+        else
+          % if not, set new incomp to point in between prevsucc and incomp
+          incomp = prevsucc + round((incomp-prevsucc)/2); % the increase is always at least one, as the diff between prevsucc and incomp is always >1
+        end
+      end
     end
-    
   else
+    %%%%% SUCCESS
+
     % When current incomp succeeds, increase incomp.
     % Then, incomp+i can either be at the maximum or not.
     % If at the maximum, succes = true.
@@ -1714,7 +1743,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     % If not, increment incomp with stepsize limited by the maximum.
     % If there have been incomp+i's, they can only have failed, and none should be present at incomp+stepsize+i
     % Check for this.
-    % Then, find the closest fail. If it is incomp+1, succes = true. If not, increment up until max.
+    % Then, find the closest fail. If it is incomp+1, succes = true. If not, increment with half the distances to the closest fail.
     
     % update succes fields and ncompsucc
     compsrcsucc         = compsrc;
@@ -1722,7 +1751,7 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     randomstatsplitsucc = randomstatsplit;
     ncompsucc{incomp}   = true;
     
-    % check whether maximum has been reached, and increment incomp intelligently otherwise
+    % check whether maximum has been reached, and increment incomp otherwise
     if incomp==estnum(2)
       disp(['split-reliability: succesfully reached a priori determined maximum of ' num2str(estnum(2)) ' components']);
       compsrcfail         = [];
@@ -1730,38 +1759,34 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
       randomstatsplitfail = [];
       stopreason          = ['reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
-      succes = true;
-      ncomp  = incomp;
+      ncomp      = incomp;
+      ncompfound = true;
       
     else % keep on incrementing
-      % check for previous fails at incomp+
-      if isempty(ncompsucc(incomp+1:end))
-        % no previous incomp+ solutions found, increment incomp with step (and check for ncompestend)
+      % check for solutions at incomp+
+      if isempty([ncompsucc{incomp+1:end}])
+        % no incomp+ solutions found, increment incomp with step (and check for ncompestend)
         incomp = min(incomp + estnum(3),estnum(2));
         
       else
-        % sanity check
+        % incomp+ fails detected
+        % first, sanity check
         if any([ncompsucc{incomp+1:end}])
           % incomp+i should never be successful
           error('unexpected error in ncomp estimation')
         end
+        
+        % find closest fail
+        nextfail = incomp + find(~cellfun(@isempty,ncompsucc(incomp+1:end)),1); 
+        
         % incomp+i found, check whether next ncomp was failing
-        if ncompsucc{incomp+1}==0
+        if nextfail == (incomp+1)
           % next ncomp failed, set succes status for current
-          succes = true;
-          ncomp  = incomp;
+          ncomp      = incomp;
+          ncompfound = true;
         else
-          % next incomp was not the fail, find closest after that (depends on estnum(3))
-          found = false;
-          while ~found
-            if isempty(ncompsucc{incomp+1})
-              incomp = incomp+1;
-            else
-              found = true;
-            end
-          end
-          % correct for ncompestend (because of check for ncompestend above, the correct incomp will never have been tested)
-          incomp = min(incomp,estnum(3));
+          % next incomp was not the fail, pick the point halfway to the next fail
+          incomp = incomp + round((nextfail-incomp)./2);
         end
       end
     end
