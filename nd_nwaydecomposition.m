@@ -20,14 +20,14 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 % Ad2:
 % The number of components to extract from the numerical array needs to be determined empirically (similar to ICA).
-% This is the case for all of the supported models. This functions can be used for this purpose using 4 different
+% This is the case for all of the supported models. This function can be used for this purpose using 4 different
 % strategies:
-% 1) split-half of the array along a dimension. This strategy allows for increasing the number of components until a criterion
-%    is no longer reached. This criterion is based on a statistic that assesses the similarity of components between
-%    split halves, which ranges between 0 and 1 (identical). The two split halves need to be given in a separate field in the data,
-%    next to the full N-way array.
+% 1) split-reliablility of the array. This strategy increasse the number of components until a reliability criterion 
+%    is no longer reached. This criterion is based on a statistic that assesses the similarity between components of the full data
+%    and of componets of splits of the data (e.g. sets of trials). The separate splits of the data need to be given in a 
+%    separate field in the data, next to the full N-way array. (The splits can have dimensions that are different from the full array)
 % 2) core-consistency diagnostic. This approach uses a statistic which can be viewed as a measures of noise being modelled
-%    and as such as an indication of whether the model with a certain number of components is still appropriate
+%    and, as such, is as an indication of whether the model with a certain number of components is still appropriate
 %    (mostly appropriate for PARAFAC). This ranges from 0 to 1 (perfect)
 % 3) minium increase in explained variance. A simple procedure that increases the number of components until the new component
 %    no longer results in a certain increase of % explained variance.
@@ -79,14 +79,14 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.convcrit             = number, convergence criterion (default = 1e-8)
 %   cfg.degencrit            = number, degeneracy criterion (default = 0.7)
 %   cfg.ncomp                = number of components to extract
-%   cfg.ncompest             = 'no', 'splithalf', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no'), see below (FIXME: complexicity of minexpvarinc and degeneracy should same as others)
+%   cfg.ncompest             = 'no', 'splitrel', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no'), see below (FIXME: complexicity of minexpvarinc and degeneracy should same as others)
 %   cfg.ncompestrandstart    = 'no' or number indicating amount of random starts for estimating component number (default = cfg.randstart)
-%   cfg.ncompeststart        = starting number of components to try to extract (default = 1) (used in splithalf/corcondiag)
-%   cfg.ncompestend          = maximum number of components to try to extract (default = 50) (used in splithalf/corcondiag)
-%   cfg.ncompeststep         = forward stepsize in ncomp estimation (default = 1) (backward is always 1; used in splithalf/corcondiag)
-%   cfg.ncompestshdatparam   = (for 'splithalf'): string containing field-name of partitioned data. Data should be kept in 1x2 cell-array, each partition in one cell
-%                              when using SPACE, one can also specify 'oddeven' as cfg.ncompestshdatparam. In this case the data will be partioned using odd/even trials/epochs
-%   cfg.ncompestshcritval    = (for 'splithalf'): scalar, or 1Xnparam vector, critical value to use for selecting number of components using splif half (default = 0.7)
+%   cfg.ncompeststart        = starting number of components to try to extract (default = 1) (used in splitrel/corcondiag)
+%   cfg.ncompestend          = maximum number of components to try to extract (default = 50) (used in splitrel/corcondiag)
+%   cfg.ncompeststep         = forward stepsize in ncomp estimation (default = 1) (backward is always 1; used in splitrel/corcondiag)
+%   cfg.ncompestsrdatparam   = (for 'splitrel'): string containing field-name of partitioned data. Data should be kept in 1xN cell-array, each split in one cell
+%                              when using SPACE, one can also specify 'oddeven' as cfg.ncompestsrdatparam. In this case the data will be partioned using odd/even trials/epochs
+%   cfg.ncompestsrcritval    = (for 'splitrel'): scalar, or 1Xnparam vector, critical value to use for selecting number of components using splif-reliability (default = 0.7)
 %                              when using SPACE, the default for the trial profile and between-component coherency (in case Dmode = identity) is set to 0
 %   cfg.ncompestvarinc       = (for 'minexpvarinc'): minimal required increase in explained variance when increasing number of compononents by cfg.ncompeststep
 %   cfg.ncompestcorconval    = (for 'corcondiag'): minimum value of the core consistency diagnostic for increasing the number of components, between 0 and 1 (default is 0.7)
@@ -101,7 +101,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %                                                        2: inner dim of inner-product                     (i.e. the incomplete dim) (only one allowed)
 %                                                        3: dim over which inner-products will be computed (i.e. the estimating dim) (only one allowed)
 %        SPACEFSP/SPACETIME
-%   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use (default = 'identity')
+%   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use. Default = 'identity', 'kdepcomplex' is not advised.
 %
 %
 %      -Using distributed computing to run random starts in parallel-
@@ -116,12 +116,13 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 %
 %       CFG.NCOMPEST - Methods for determining the number of components to extract
-%            splithalf: Determines the number of *reliable* components to extract. Extract components from two splits of the data (e.g. odd/even trials), and judge similiarity (coef. 0<->1)
-%                         between components from the two splits. If similarity of each parameter surpasses its criterion, increase the number of components (otherwise decrease).
-%                         The criterion is set per parameter using cfg.ncompestshcritval. Set the criterion to zero to ignore parameters.
-%                         Advised for all models. See cfg.ncompestshcritval & cfg.ncompestshdatparam & cfg.ncompeststart/end/step
-%                         To obtain a split-half estimate for a fixed number of componenents, set cfg.ncompeststart/end to the same number, and set cfg.ncompestshcritval to NaN for the parameters that
-%                         should determine the spilt-half coefficient.
+%             splitrel: Determines the number of *reliable* components to extract. Extract components from the full data and N splits of the data (e.g. odd/even trials), and judge 
+%                         similiarity (coef. 0<->1) between components from the main data and each of the splits. If similarity of each parameter surpasses its criterion for each of 
+%                         the splits, increase the number of components. Otherwise decrease till the criterion is satisfied.
+%                         The criterion is set per parameter using cfg.ncompestsrcritval. Set the criterion to zero to ignore parameters.
+%                         Applicable and advised for all models. See cfg.ncompestsrcritval & cfg.ncompestsrdatparam & cfg.ncompeststart/end/step
+%                         To obtain a split-reliability estimate for a fixed number of componenents, set cfg.ncompeststart/end to the same number, and set cfg.ncompestsrcritval to NaN for the parameters that
+%                         should determine the spilt-reliability coefficient (0 for the rest).
 %                         (see any of the three reference paper, and Bro 1998, Multi-way Analysis in the Food Industry.)
 %           corcondiag: Extract components, and compute the Core Consistency Diagnostic (coef. 0<->1). This coefficient indicates whether the components reflect the N-way
 %                         structure of the data, or reflects noise. If the coefficients is lower than the criterion, decrease the number of components, otherwise, increase the number.
@@ -145,7 +146,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %    Possible additional output fields:
 %            t3core: a Tucker3 model core-array (vectorized) (not possible for all models)
 %        randomstat: structure containing statistics of random estimation of final decomposition (if randomly started)
-%     splithalfstat: structure containing statistics for split-half component number estimation procedure
+%      splitrelstat: structure containing statistics for split-half component number estimation procedure
 %    corcondiagstat: structure containing statistics for corcondiag component number estimation procedure
 %
 %
@@ -195,6 +196,22 @@ ft_preamble trackconfig
 %ft_preamble debug % ft_preamble_debug currently leads to qsubfeval saving a copy of the input data
 ft_preamble loadvar data
 
+%%% backwards compatability per August 2016 for oldsplithalf
+% first, check for renamed splitrel options
+if isfield(cfg,'ncompest') && strcmp(cfg.ncompest,'splithalf')
+  warning(['You are using the old format for specifying split-reliability. Consider using the new method (see documentation), which computes '...
+    ' a reliability coefficient between components of the full data, and components of each split (which can be more than one split).'...
+    ' When doing so, the output fields will be slightly different. '])
+  oldsplithalf = true;
+else
+  oldsplithalf = false;
+end
+cfg = ft_checkconfig(cfg, 'renamedval',  {'ncompest', 'splithalf', 'splitrel'});
+cfg = ft_checkconfig(cfg, 'renamed',     {'ncompestshdatparam', 'ncompestsrdatparam'});
+cfg = ft_checkconfig(cfg, 'renamed',     {'ncompestshcritval', 'ncompestsrcritval'});
+%%% backwards compatability per August 2016 for oldsplithalf
+
+
 % Set defaults
 cfg.model               = ft_getopt(cfg, 'model',                  []);
 cfg.datparam            = ft_getopt(cfg, 'datparam',               []);
@@ -209,8 +226,8 @@ cfg.ncompestrandstart   = ft_getopt(cfg, 'ncompestrandstart',      cfg.randstart
 cfg.ncompeststart       = ft_getopt(cfg, 'ncompeststart',          1);
 cfg.ncompestend         = ft_getopt(cfg, 'ncompestend',            50);
 cfg.ncompeststep        = ft_getopt(cfg, 'ncompeststep',           1);
-cfg.ncompestshdatparam  = ft_getopt(cfg, 'ncompestshdatparam',     []);
-cfg.ncompestshcritval   = ft_getopt(cfg, 'ncompestshcritval',      0.7); % expanded to all paramameters later
+cfg.ncompestsrdatparam  = ft_getopt(cfg, 'ncompestsrdatparam',     []);
+cfg.ncompestsrcritval   = ft_getopt(cfg, 'ncompestsrcritval',      0.7); % expanded to all paramameters later
 cfg.specialdims         = ft_getopt(cfg, 'specialdims',            []); % parafac2 specific
 cfg.ncompestvarinc      = ft_getopt(cfg, 'ncompestvarinc',         []);
 cfg.Dmode               = ft_getopt(cfg, 'Dmode',                  'identity'); %  spacefsp/spacetime specific
@@ -282,8 +299,8 @@ if ~isempty(cfg.ncomp) && ~strcmp(cfg.ncompest,'no')
   warning('cfg.ncomp cannot be used when estimating number of components, cfg.ncomp is ignored')
   cfg.ncomp = [];
 end
-if strcmp(cfg.ncompest,'splithalf') && isempty(cfg.ncompestshdatparam)
-  error('you need to specify cfg.ncompestshdatparam')
+if strcmp(cfg.ncompest,'splitrel') && isempty(cfg.ncompestsrdatparam)
+  error('you need to specify cfg.ncompestsrdatparam')
 end
 if strcmp(cfg.ncompest,'minexpvarinc') && isempty(cfg.ncompestvarinc)
   error('must set cfg.ncompestvarinc, the minimal required increase in explained variance')
@@ -295,8 +312,8 @@ if numel(cfg.ncompeststart) ~= 1 || numel(cfg.ncompestend) ~= 1 || numel(cfg.nco
   error('improper cfg.ncompestXXX')
 end
 
-% check splithalf and ncompestshcritval
-if strcmp(cfg.ncompest,'splithalf')
+% check splitrel and ncompestsrcritval
+if strcmp(cfg.ncompest,'splitrel')
   switch cfg.model
     case {'parafac','parafac2','parafac2cp','spacetime','spacefsp'}
       % implemented
@@ -304,26 +321,26 @@ if strcmp(cfg.ncompest,'splithalf')
       error('model not supported')
   end
 end
-if strcmp(cfg.ncompest,'splithalf')
-  if (numel(cfg.ncompestshcritval)==1) % expand using defaults for SPACE
+if strcmp(cfg.ncompest,'splitrel')
+  if (numel(cfg.ncompestsrcritval)==1) % expand using defaults for SPACE
     if strncmp(cfg.model,'parafac',7)
-      cfg.ncompestshcritval = repmat(cfg.ncompestshcritval,[1 ndimsdat]);
+      cfg.ncompestsrcritval = repmat(cfg.ncompestsrcritval,[1 ndimsdat]);
     elseif strcmp(cfg.model,'spacetime') || strcmp(cfg.model,'spacefsp')
-      cfg.ncompestshcritval = repmat(cfg.ncompestshcritval,[1 5]);
-      cfg.ncompestshcritval(3) = 0; % set the trial profile to zero by default
+      cfg.ncompestsrcritval = repmat(cfg.ncompestsrcritval,[1 5]);
+      cfg.ncompestsrcritval(3) = 0; % set the trial profile to zero by default
       if strcmp(cfg.Dmode,'identity')
-        cfg.ncompestshcritval(5) = 0; % set D to zero by default
+        cfg.ncompestsrcritval(5) = 0; % set D to zero by default
       end
     end
   else
-    if (strncmp(cfg.model,'parafac',7) && (numel(cfg.ncompestshcritval)~=ndimsdat))... % FIXME: likley should contain check for PARAFAC2
-        || (strcmp(cfg.model,'spacetime') && (numel(cfg.ncompestshcritval)~=5))...
-        || (strcmp(cfg.model,'spacefsp') && (numel(cfg.ncompestshcritval)~=5))
-      error('improper size of cfg.ncompestshcritval')
+    if (strncmp(cfg.model,'parafac',7) && (numel(cfg.ncompestsrcritval)~=ndimsdat))... % FIXME: likley should contain check for PARAFAC2
+        || (strcmp(cfg.model,'spacetime') && (numel(cfg.ncompestsrcritval)~=5))...
+        || (strcmp(cfg.model,'spacefsp') && (numel(cfg.ncompestsrcritval)~=5))
+      error('improper size of cfg.ncompestsrcritval')
     end
   end
-  if all(cfg.ncompestshcritval==0)
-    error('cfg.ncompestshcritval cannot be zero for all parameters')
+  if all(cfg.ncompestsrcritval==0)
+    error('cfg.ncompestsrcritval cannot be zero for all parameters')
   end
 end
 
@@ -403,9 +420,9 @@ end
 if strncmp(cfg.model,'parafac',7) && ndimsdat ~= numel(cfg.complexdims)
   error('length of cfg.complexdims should be equal to number of dimensions in data')
 end
-if strcmp(cfg.ncompest,'splithalf')
-  if strncmp(cfg.model,'parafac',7) && (numel(cfg.complexdims) ~= numel(cfg.ncompestshcritval))
-    error('length of cfg.ncompestshcritval should be equal to the number of dimensions in the data')
+if strcmp(cfg.ncompest,'splitrel')
+  if strncmp(cfg.model,'parafac',7) && (numel(cfg.complexdims) ~= numel(cfg.ncompestsrcritval))
+    error('length of cfg.ncompestsrcritval should be equal to the number of dimensions in the data')
   end
 end
 
@@ -631,7 +648,7 @@ ncomp         = cfg.ncomp;
 nrand         = cfg.randstart;
 nrandestcomp  = cfg.ncompestrandstart;
 estnum        = [cfg.ncompeststart cfg.ncompestend cfg.ncompeststep];
-estshcritval  = cfg.ncompestshcritval;
+estsrcritval  = cfg.ncompestsrcritval;
 distcomp      = cfg.distcomp;
 expvarinc     = cfg.ncompestvarinc;
 corconval     = cfg.ncompestcorconval;
@@ -642,7 +659,7 @@ switch cfg.model
   case 'parafac2'
     modelopt = {'compmodes',cfg.complexdims,'specmodes',cfg.specialdims};
   case 'parafac2cp'
-    if strcmp(cfg.ncompest,'splithalf')
+    if strcmp(cfg.ncompest,'splitrel')
       % do hacks for parafac2cp
       modelopt = {'compmodes',cfg.complexdims,'ssqdatnoncp',data.ssqdatnoncp,'specmodes',cfg.specialdims,'ssqdatnoncppart1',data.ssqdatnoncppart1,'ssqdatnoncppart2',data.ssqdatnoncppart2};
     else
@@ -662,28 +679,43 @@ end
 % Component estimation
 switch cfg.ncompest
   
-  case 'splithalf'
+  case 'splitrel'
     
-    if any(strcmp(cfg.ncompestshdatparam,{'oddeven','oddevenavg'}))
+    if any(strcmp(cfg.ncompestsrdatparam,{'oddeven','oddevenavg'}))
       if ~strcmp(model,'spacefsp') && ~strcmp(model,'spacetime')
-        error('cfg.ncompestshdatparam = ''oddeven/oddevenavg'' is only supported for SPACE-time and SPACE-FSP. Please provide partioned data in a 1x2 cell-array and specify its field name in cfg.ncompestshdatparam')
+        error('cfg.ncompestsrdatparam = ''oddeven/oddevenavg'' is only supported for SPACE-time and SPACE-FSP. Please provide partioned data in a 1x2 cell-array and specify its field name in cfg.ncompestsrdatparam')
       end
       if size(dat,3)==1
-        error('splithalf procedure with automatic segmentation is only suitable for when the provided number trials/epochs is bigger than 1')
+        error('splitrel procedure with automatic segmentation is only suitable for when the provided number trials/epochs is bigger than 1')
       end
       %  disp progress
       disp('creating split-half datasets using odd/even trial numbers')
       % extract partitions
-      datpart1 = dat(:,:,1:2:size(dat,3),:);
-      datpart2 = dat(:,:,2:2:size(dat,3),:);
+      datsplit = cell(1,2);
+      datsplit{1} = dat(:,:,1:2:size(dat,3),:);
+      datsplit{2} = dat(:,:,2:2:size(dat,3),:);
     else
       % extract partitions
-      datpart1 = data.(cfg.ncompestshdatparam){1};
-      datpart2 = data.(cfg.ncompestshdatparam){2};
+      nsplit = numel(data.(cfg.ncompestsrdatparam));
+      datsplit = cell(1,nsplit);
+      for isplit = 1:nsplit
+        datsplit{isplit} = data.(cfg.ncompestsrdatparam){isplit};
+      end
     end
     
-    % perform splithalf component number estimate
-    [ncomp, splithalfstat] = splithalf(model, datpart1, datpart2, nrandestcomp, estnum, estshcritval, niter, convcrit, degencrit, distcomp, modelopt{:}); % subfunction
+    % perform splitrel component number estimate
+    [ncomp, splitrelstat] = splitrel(model, dat, datsplit, nrandestcomp, estnum, estsrcritval, niter, convcrit, degencrit, distcomp, oldsplithalf, modelopt{:}); % subfunction
+        
+    % extract startval if nrand is the same
+    if ~oldsplithalf && (nrandestcomp==nrand) 
+      if ~isempty(splitrelstat.randomstatfullsucc)
+        startval   = splitrelstat.randomstatfullsucc.startvalglobmin;
+        randomstat = splitrelstat.randomstatfullsucc;
+      else
+        startval   = splitrelstat.randomstatfullfail.startvalglobmin;
+        randomstat = splitrelstat.randomstatfullfail;
+      end
+    end
     
   case 'degeneracy'
     % Warn about component estimation
@@ -701,9 +733,14 @@ switch cfg.ncompest
     [ncomp, corcondiagstat] = corcondiag(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, corconval, modelopt{:}); % subfunction
     
     % extract startval if nrand is the same
-    if (nrandestcomp==nrand) && (corcondiagstat.randomstatsucc.convcrit==convcrit) % convcrit is the same as used for randomstart below
-      startval   = corcondiagstat.randomstatsucc.startvalglobmin;
-      randomstat = corcondiagstat.randomstatsucc;
+    if (nrandestcomp==nrand)
+      if ~isempty(corcondiagstat.randomstatsucc)
+        startval   = corcondiagstat.randomstatsucc.startvalglobmin;
+        randomstat = corcondiagstat.randomstatsucc;
+      else
+        startval   = corcondiagstat.randomstatfail.startvalglobmin;
+        randomstat = corcondiagstat.randomstatfail;
+      end
     end
     
   case 'no'
@@ -869,8 +906,12 @@ nwaycomp.scaling    = scaling;
 if isnumeric(nrand)
   nwaycomp.randomstat = randomstat;
 end
-if strcmp(cfg.ncompest,'splithalf')
-  nwaycomp.splithalfstat = splithalfstat;
+if strcmp(cfg.ncompest,'splitrel') 
+  if ~oldsplithalf
+    nwaycomp.splitrelstat = splitrelstat;
+  else
+    nwaycomp.splithalfstat = splitrelstat;
+  end
 end
 if strcmp(cfg.ncompest,'corcondiag')
   nwaycomp.corcondiagstat = corcondiagstat;
@@ -1058,7 +1099,7 @@ allrandomstat = [];
 ncompsucc     = [];
 incomp  = estnum(1);
 succes  = false;
-while ~succes % the logic used here is identical as in splithalf, they should be changed SIMULTANEOUSLY or both subfunctions should be merged with switches
+while ~succes % the logic used here is identical as in splitrel, they should be changed SIMULTANEOUSLY or both subfunctions should be merged with switches
   disp(['corcondiag: number of components = ' num2str(incomp) ' of max ' num2str(estnum(2))]);
   disp('corcondiag: performing decomposition');
   
@@ -1069,10 +1110,10 @@ while ~succes % the logic used here is identical as in splithalf, they should be
   
   
   % see if there are any non-degenerate start values and set flag if otherwise
-  if length(randomstat.degeninit)==nrand
+  if numel(randomstat.degeninit)==nrand
     % try again with another round
     [startval, randomstat] = randomstart(model, dat, incomp, nrand, niter, convcrit, degencrit, distcomp, ['corcondiag ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
-    if length(randomstat.degeninit)==nrand
+    if numel(randomstat.degeninit)==nrand
       degenflg = true;
     else
       degenflg = false; % good to go
@@ -1087,7 +1128,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
   switch model
     case 'parafac'
       [estcomp,dum,dum,dum,dum,t3core] = feval(['nwaydecomp_' model], dat, incomp, 'startval', startval, 'compmodes', compmodes, opt{:});
-      %     case 'parafac2' FIXME: parafac2/cp needs to output a t3core, and crosscompcongruence needs to be aware of specmodes (see splithalf)
+      %     case 'parafac2' FIXME: parafac2/cp needs to output a t3core, and crosscompcongruence needs to be aware of specmodes (see splitrel)
       %       [estcomp,dum,dum,dum,dum,dum,t3core] = feval(['nwaydecomp_' model], dat, incomp, specmodes, 'startval', startval, 'compmodes', compmodes, opt{:});
       %     case 'parafac2cp'
       %       [estcomp,dum,dum,dum,dum,dum,t3core] = feval(['nwaydecomp_' model], dat, incomp, specmodes, 'startval', startval, 'compmodes', compmodes, opt{:}, 'ssqdatnoncp', ssqdatnoncp);
@@ -1148,13 +1189,13 @@ while ~succes % the logic used here is identical as in splithalf, they should be
       t3corefail     = t3core;
       corcondiagfail = corcondiag;
       randomstatfail = randomstat;
-      failreason = 'core consistency diagnostic';
+      stopreason = 'core consistency diagnostic';
     elseif degenflg
       disp('corcondiag: random initializations only returned likely degenerate solutions')
       t3corefail     = []; % no t3core is computed
       corcondiagfail = []; % no t3core, so no corcondiag
       randomstatfail = randomstat;
-      failreason     = 'degeneracy';
+      stopreason     = 'degeneracy';
     end
     ncompsucc{incomp} = false;
     % decrease incomp by 1
@@ -1169,7 +1210,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
       t3coresucc     = [];
       corcondiagsucc = [];
       randomstatsucc = [];
-      failreason = 'core consistency diagnostic criterion fail at ncomp = 1';
+      stopreason = 'core consistency diagnostic criterion fail at ncomp = 1';
       break
     end
     
@@ -1208,7 +1249,7 @@ while ~succes % the logic used here is identical as in splithalf, they should be
       t3corefail     = [];
       corcondiagfail = [];
       randomstatfail = [];
-      failreason = ['corcondiag stopped: reached a priori maximum of ' num2str(estnum(2)) ' components'];
+      stopreason = ['corcondiag stopped: reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
       succes = true;
       ncomp  = incomp;
@@ -1252,68 +1293,6 @@ while ~succes % the logic used here is identical as in splithalf, they should be
 end % incomp
 disp(['corcondiag: final number of components = ' num2str(ncomp)]);
 
-
-%
-% FIXME: NO MODEL SPECIFIC COEFFICIENTS HERE YET!!!!
-% FIXME: the below piece of code is shit and should be reimplemented to handle flexible non-linearly increasing not-starting-from-1 ncomp's
-% Calcute cross-ncomp congruence
-% the organization is as follows:
-% crossncomp{i} = all cross-comp calculations started from ncomp = i
-% crossncomp{i}{j} = cross-comp calculations of ncomp = i, with ncomp = j
-% crossncomp{i}{j} = I*J matrix with congruence coefficents between all components
-% nparam      = numel(estcomp);
-% ncrossncomp = length(allcomp);
-% ncompindex  = 1:ncrossncomp; % index of all cross ncomp calculations
-% crossncomp  = cell(1,ncrossncomp);
-% % loop over number of comps in allcomp
-% for incomp = ncompindex
-%   remcomp = ncompindex;
-%   remcomp(incomp) = []; % remaining ncomps to calculate over
-%   % loop over cross-ncomp-calculations
-%   for incross = 1:length(remcomp)
-%     currncross = remcomp(incross);
-%     % set n's and preset crossn
-%     nseedcomp = incomp;
-%     ntargcomp = currncross;
-%     crossn = zeros(nparam,nseedcomp,ntargcomp);
-%     currseed = allcomp{incomp};
-%     currtarg = allcomp{currncross};
-%     % loop over parameters
-%     for iparam = 1:nparam
-%       currseedparam = currseed{iparam};
-%       currtargparam = currtarg{iparam};
-%       % loop over components of seed
-%       for icompseed = 1:nseedcomp
-%         if ndims(currseedparam)==3 || (ndims(currseedparam)==2 && size(currseedparam,2)~=nseedcomp)
-%           currseedcomp = currseedparam(:,:,icompseed);
-%           currseedcomp = reshape(permute(currseedcomp,[1 3 2]),[size(currseedcomp,1)*size(currseedcomp,2) size(currseedcomp,3)]);
-%         elseif ndims(currseedparam)<=2
-%           currseedcomp = currseedparam(:,icompseed);
-%         end
-%         % loop over components of target
-%         for icomptarg = 1:ntargcomp
-%           if ndims(currtargparam)==3 || (ndims(currtargparam)==2 && size(currtargparam,2)~=ntargcomp)
-%             currtargcomp = currtargparam(:,:,icomptarg);
-%             currtargcomp = reshape(permute(currtargcomp,[1 3 2]),[size(currtargcomp,1)*size(currtargcomp,2) size(currtargcomp,3)]);
-%           elseif ndims(currtargparam)<=2
-%             currtargcomp = currtargparam(:,icomptarg);
-%           end
-%           if all(size(currseedcomp)==size(currtargcomp))
-%             currseedcomp = currseedcomp ./ sqrt(sum(abs(currseedcomp).^2));
-%             currtargcomp = currtargcomp ./ sqrt(sum(abs(currtargcomp).^2));
-%             crossn(iparam,icompseed,icomptarg) = abs(currseedcomp' * currtargcomp);
-%           else
-%             crossn(iparam,icompseed,icomptarg) = 0;
-%           end
-%         end % end loop over target components
-%       end  % end loop over seed components
-%     end % end loop over parameters
-%     % mean over parameters and mean over partitions
-%     crossn = squeeze(mean(crossn,1));
-%     crossncomp{incomp}{incross} = crossn;
-%   end % end loop over cross-ncomp-calculations
-% end % end loop over number of comps in allcomp
-
 % create corcondiagstat
 corcondiagstat.ncomp           = ncomp;
 corcondiagstat.corcondiagsucc  = corcondiagsucc;
@@ -1322,7 +1301,7 @@ corcondiagstat.t3coresucc      = t3coresucc;
 corcondiagstat.t3corefail      = t3corefail;
 corcondiagstat.randomstatsucc  = randomstatsucc;
 corcondiagstat.randomstatfail  = randomstatfail;
-corcondiagstat.failreason      = failreason;
+corcondiagstat.stopreason      = stopreason;
 corcondiagstat.crosscompcongr  = [];
 corcondiagstat.allcomp         = allcomp;
 corcondiagstat.allt3core       = allt3core;
@@ -1333,9 +1312,9 @@ corcondiagstat.ncompsucc       = ncompsucc;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%% Subfunction for cfg.ncompest = 'splithalf'             %%%%%%
+%%%%%% Subfunction for cfg.ncompest = 'splitrel'             %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [ncomp,splithalfstat] = splithalf(model, datpart1, datpart2, nrand, estnum, estshcritval, niter, convcrit, degencrit, distcomp, varargin)
+function [ncomp,splitrelstat] = splitrel(model, datfull, datsplit, nrand, estnum, estsrccritval, niter, convcrit, degencrit, distcomp, oldsplithalf, varargin)
 
 % get model specific options from keyval
 switch model
@@ -1358,306 +1337,325 @@ switch model
     error('model not supported')
 end
 
-% Display start
-disp('split-half: performing split-half component number estimation')
+% get N
+nsplit = numel(datsplit);
 
-% Estimate number of components by incremently increasing number and calculating split-half correlations
-allcomp           = [];
-allcompsh         = [];
-allpartcombcompsh = [];
-allrandomstat     = [];
+%%% backwards compatability per August 2016 for oldsplithalf
+% reverse the old style flag
+newsplitrel = ~oldsplithalf;
+%%% backwards compatability per August 2016 for oldsplithalf
+
+% Display start
+disp(['split-reliability: performing split-reliability component number estimation using ' num2str(nsplit) ' splits'])
+
+% Estimate number of components by incremently increasing number and calculating split-rel correlations
+allcompsrc         = [];
+allpartcombcompsrc = [];
+allrandomstatsplit = [];
+allrandomstatfull  = [];
 incomp  = estnum(1);
 succes  = false;
 while ~succes % the logic used here is identical as in corcondiag, they should be changed SIMULTANEOUSLY or both subfunctions should be merged with switches
   
-  disp(['split-half: number of components = ' num2str(incomp) ' of max ' num2str(estnum(2))]);
-  disp('split-half: performing decomposition and computing split-half coefficients');
+  disp(['split-reliability: number of components = ' num2str(incomp) ' of max ' num2str(estnum(2))]);
+  disp('split-reliability: performing decomposition and computing split-half coefficients');
   
   
   % Get decompositions for current incomp
-  % get start values for decomposition for current incomp
-  [startval1, randomstat1] = randomstart(model, datpart1, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half part 1 ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
-  [startval2, randomstat2] = randomstart(model, datpart2, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half part 2 ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  % for the full data
+  if newsplitrel
+    [dum, randomstatfull] = randomstart(model, datfull, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability - full data  ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  else
+    %%% backwards compatability per August 2016 for oldsplithalf
+    dum            = [];
+    randomstatfull = [];
+    %%% backwards compatability per August 2016 for oldsplithalf
+  end
+  % for the splits
+  randomstatsplit = cell(1,nsplit);
+  for isplit = 1:nsplit
+    [dum, randomstatsplit{isplit}] = randomstart(model, datsplit{isplit}, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability - part ' num2str(isplit) '/' num2str(nsplit) '  ncomp = ' num2str(incomp) ' - '], varargin{:}); % subfunction
+  end
   
-  % see if there are any non-degenerate start values and set flag if otherwise (and try again if it only goes for one partition)
-  if length(randomstat1.degeninit)==nrand && length(randomstat2.degeninit)==nrand
-    degenflg = true;
-  elseif length(randomstat1.degeninit)==nrand && length(randomstat2.degeninit)~=nrand % if random inits for part1 do not contain non-degenerate solutions, but they do for part2, retry part1
-    [startval1, randomstat1] = randomstart(model, datpart1, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half part 1 ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
-    if length(randomstat1.degeninit)==nrand % if there are still no non-degenerates
-      degenflg = true;
-    else
-      degenflg = false; % non-degenerates present, good to go
-    end
-  elseif length(randomstat1.degeninit)~=nrand && length(randomstat2.degeninit)==nrand% if random inits for part2 do not contain non-degenerate solutions, but they do for part1, retry part2
-    [startval2, randomstat2] = randomstart(model, datpart2, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-half part 2 ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
-    if length(randomstat2.degeninit)==nrand % if there are still no non-degenerates
-      degenflg = true;
-    else
-      degenflg = false; % non-degenerates present, good to go
+  % see if there are any non-degenerate start values for the full data and set flag if otherwise (and try again if it only goes for one partition)
+  if newsplitrel
+    degenflg = numel(randomstatfull.degeninit)==nrand;
+    if degenflg % try again
+      [dum, randomstatfull] = randomstart(model, datfull, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability - full data  ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
+      degenflg = numel(randomstatfull.degeninit)==nrand;
     end
   else
     degenflg = false;
   end
   
-  % The splithalf logic is now as follows: the splithalf criterion fails, if the splithalf coeffcient is not surpassed for ANY combination of random starts for both partitions
-  % The logic used to be: the splithalf criterion fails, if the splithalf coefficient is not surpassed for the random starts which had the maximum expvar from both partitions
+  % see if there are any non-degenerate start values for the splits and set flag if otherwise (and try again if it only goes for one partition)
+  if ~degenflg % only continue if the full data had nondegenerate start values
+    degencnt = 0;
+    for isplit = 1:nsplit
+      degencnt = degencnt + (numel(randomstatsplit{isplit}.degeninit)==nrand);
+    end
+    if degencnt == nsplit
+      degenflg = true;
+    else % if only a subset of splits had no nondegenerate starts, try those again
+      degencnt = 0;
+      for isplit = 1:nsplit
+        if randomstatsplit{isplit}.degeninit == nrand
+          [dum, randomstatsplit{isplit}] = randomstart(model, datsplit{isplit}, incomp, nrand, niter, convcrit, degencrit, distcomp, ['split-reliability - part ' num2str(isplit) '/' num2str(nsplit) '  ncomp = ' num2str(incomp) ', second try due to degeneracy - '], varargin{:}); % subfunction
+        end
+        degencnt = degencnt + (numel(randomstatsplit{isplit}.degeninit)==nrand);
+      end
+      % check degeneracy again
+      if degencnt>0
+        degenflg = true;
+      else
+        degenflg = false;
+      end
+    end
+  end
+
+  
+  %%%%
+  % The splitrel logic is now as follows: the splitrel criterion fails, if the splitrel coeffcient is not surpassed for any combination of random starts of the splits with the main
+  %%%
   
   % extract all non-degenerate startvalues
-  startval1 = randomstat1.startvalall(setdiff(1:nrand,randomstat1.degeninit));
-  startval2 = randomstat2.startvalall(setdiff(1:nrand,randomstat2.degeninit));
-  nndegenrandprt1 = numel(startval1);
-  nndegenrandprt2 = numel(startval2);
-  
-  % It used to be the case that the splithalf coefficients were computed only for the 'final' decomposition, instead of using all random starts
-  % Keeping the code hacked code below in case of switching back
-  estcomp = cell(1,2);
-  estcomp{1} = cell(1,nndegenrandprt1);
-  estcomp{2} = cell(1,nndegenrandprt2);
-  for inondegenrand = 1:nndegenrandprt1
-    estcomp{1}{inondegenrand} = startval1{inondegenrand};
+  % for the full data
+  if newsplitrel
+    fullcomp        = randomstatfull.startvalall(setdiff(1:nrand,randomstatfull.degeninit));
+    nndegenrandfull = numel(fullcomp);
+  else
+    %%% backwards compatability per August 2016 for oldsplithalf
+    % full data now becomes first split
+    fullcomp        = randomstatsplit{1}.startvalall(setdiff(1:nrand,randomstatsplit{1}.degeninit)); 
+    nndegenrandfull = numel(fullcomp);
+    %%% backwards compatability per August 2016 for oldsplithalf
   end
-  for inondegenrand = 1:nndegenrandprt2
-    estcomp{2}{inondegenrand} = startval2{inondegenrand};
+  % for splits
+  nndegenrandsplit = NaN(1,nsplit);
+  splitcomp        = cell(1,nsplit);
+  for isplit = 1:nsplit
+    splitcomp{isplit}        = randomstatsplit{isplit}.startvalall(setdiff(1:nrand,randomstatsplit{isplit}.degeninit));
+    nndegenrandsplit(isplit) = numel(splitcomp{isplit});
   end
-  %   % set niter to a small number in case the solution in random starts has not converged yet (which will cause the below to last very long)
-  %   fniter = 10; %
-  %   % set up general options
-  %   optsh1 = {'niter', fniter, 'convcrit', convcrit, 'dispprefix',['split-half part 1 ncomp = ' num2str(incomp) ': ']};
-  %   optsh2 = {'niter', fniter, 'convcrit', convcrit, 'dispprefix',['split-half part 2 ncomp = ' num2str(incomp) ': ']};
-  %   for inondegenrand = 1:nondegennrand
-  %     switch model
-  %       case 'parafac'
-  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:});
-  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:});
-  %       case 'parafac2'
-  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, specmodes, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:});
-  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, specmodes, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:});
-  %       case 'parafac2cp'
-  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, specmodes, 'startval', startval1{inondegenrand}, 'compmodes', compmodes, optsh1{:}, 'ssqdatnoncp', ssqdatnoncppart1);
-  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, specmodes, 'startval', startval2{inondegenrand}, 'compmodes', compmodes, optsh2{:}, 'ssqdatnoncp', ssqdatnoncppart2);
-  %       case 'spacetime'
-  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, freq, 'Dmode', Dmode, 'startval', startval1{inondegenrand}, optsh1{:});
-  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, freq, 'Dmode', Dmode, 'startval', startval2{inondegenrand}, optsh2{:});
-  %       case 'spacefsp'
-  %         [estcomp{1}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart1, incomp, 'Dmode', Dmode, 'startval', startval1{inondegenrand}, optsh1{:});
-  %         [estcomp{2}{inondegenrand},dum,dum,dum,dum,dum] = feval(['nwaydecomp_' model], datpart2, incomp, 'Dmode', Dmode, 'startval', startval2{inondegenrand}, optsh2{:});
-  %       otherwise
-  %         error('model not yet supported in split-half component number estimation')
-  %     end
-  %   end
-  
-  % compute splithalf coeffcients for all possible pairs of random starts from the splithalves
-  partcombcompsh = cell(nndegenrandprt1,nndegenrandprt2);
-  compsh = NaN(incomp,length(randomstat1.startvalall{1})); % NaN in case of degenflg and the below is not executed
-  for irandpart1 = 1:nndegenrandprt1
-    for irandpart2 = 1:nndegenrandprt2
-      % set current estcomp
-      currestcomp = cell(1,2);
-      currestcomp{1} = estcomp{1}{irandpart1};
-      currestcomp{2} = estcomp{2}{irandpart2};
-      % compute component congruence for all possible pairs between split halves
-      compcongr = zeros(incomp,incomp,length(currestcomp{1}));
-      for icompsh1 = 1:incomp
-        for icompsh2 = 1:incomp
-          for iparam = 1:length(currestcomp{1})
-            % perform model specific stuff
-            switch model
-              case {'parafac','parafac2','parafac2cp'}
-                paramc1 = currestcomp{1}{iparam}(:,icompsh1);
-                paramc2 = currestcomp{2}{iparam}(:,icompsh2);
-                % normalize
-                paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                % put in compsh
-                compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-              case {'spacetime','spacefsp'}
-                switch iparam
-                  case {1,2}
-                    paramc1 = currestcomp{1}{iparam}(:,icompsh1);
-                    paramc2 = currestcomp{2}{iparam}(:,icompsh2);
-                    % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
-                    compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-                  case 3
-                    paramc1 = currestcomp{1}{iparam}(:,icompsh1);
-                    paramc2 = currestcomp{2}{iparam}(:,icompsh2);
-                    % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
-                    if numel(paramc1) == numel(paramc2)
-                      compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-                    else
-                      compcongr(icompsh1,icompsh2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
-                    end
-                  case 4
-                    switch model
-                      case 'spacetime'
-                        % create frequency specific phases weighted by spatial maps and frequency profiles
-                        A1 = currestcomp{1}{1}(:,icompsh1);
-                        A2 = currestcomp{2}{1}(:,icompsh2);
-                        B1 = currestcomp{1}{2}(:,icompsh1);
-                        B2 = currestcomp{2}{2}(:,icompsh2);
-                        S1 = currestcomp{1}{4}(:,icompsh1);
-                        S2 = currestcomp{2}{4}(:,icompsh2);
-                        % construct complex site by freq matrix
-                        Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
-                        Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
-                        % scale with A
-                        Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
-                        Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
-                        % compute splithalfcoef over freqs, than abs, then average weighted with B
-                        shoverfreq = zeros(numel(B1),1);
-                        for ifreq = 1:numel(B1)
-                          currS1 = Scomp1(:,ifreq);
-                          currS2 = Scomp2(:,ifreq);
-                          currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                          currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
-                          shoverfreq(ifreq) = abs(currS1'*currS2);
-                        end
-                        shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                        % put in compsh
-                        compcongr(icompsh1,icompsh2,iparam) = shsumfreq;
-                      case 'spacefsp'
-                        % create frequency specific phases weighted by spatial maps and frequency profiles
-                        A1 = currestcomp{1}{1}(:,icompsh1);
-                        A2 = currestcomp{2}{1}(:,icompsh2);
-                        B1 = currestcomp{1}{2}(:,icompsh1);
-                        B2 = currestcomp{2}{2}(:,icompsh2);
-                        L1 = currestcomp{1}{4}(:,:,icompsh1);
-                        L2 = currestcomp{2}{4}(:,:,icompsh2);
-                        % construct complex site by freq matrix
-                        Lcomp1 = exp(1i*2*pi*L1);
-                        Lcomp2 = exp(1i*2*pi*L2);
-                        % scale with A
-                        Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
-                        Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
-                        % compute splithalfcoef over freqs, than abs, then average weighted with B
-                        shoverfreq = zeros(numel(B1),1);
-                        for ifreq = 1:numel(B1)
-                          currL1 = Lcomp1(:,ifreq);
-                          currL2 = Lcomp2(:,ifreq);
-                          currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                          currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
-                          shoverfreq(ifreq) = abs(currL1'*currL2);
-                        end
-                        shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                        % put in compsh
-                        compcongr(icompsh1,icompsh2,iparam) = shsumfreq;
-                    end
-                  case 5
-                    switch Dmode
-                      case 'identity'
-                        % D is fixed with arbitrary order, make its splithalf coefficient irrelevant
-                        compcongr(icompsh1,icompsh2,iparam) = 1;
-                      case 'kdepcomplex'
-                        % scale with B
-                        B1 = currestcomp{1}{2}(:,icompsh1);
-                        B2 = currestcomp{2}{2}(:,icompsh2);
-                        D1 = currestcomp{1}{5}(:,:,icompsh1);
-                        D2 = currestcomp{2}{5}(:,:,icompsh2);
-                        D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
-                        D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
-                        % vectorize
-                        paramc1 = D1(:);
-                        paramc2 = D2(:);
-                        % normalize
-                        paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                        paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                        % put in compsh
-                        compcongr(icompsh1,icompsh2,iparam) = abs(paramc1' * paramc2);
-                    end
-                end
+   
+  % compute splitrel coeffcients for all possible pairs of random starts from the splits with the main
+  partcombcompsrc = cell(1,nsplit);
+  for isplit = 1:nsplit
+    compsrc = NaN(incomp,numel(splitcomp{1})); % NaN in case of degenflg and the below is not executed
+    partcombcompsrc{isplit} = cell(nndegenrandfull,nndegenrandsplit(isplit));
+    for irandfull = 1:nndegenrandfull
+      for irandsplit = 1:nndegenrandsplit(isplit)
+        % set current estcomp
+        currcomp = cell(1,2);
+        currcomp{1} = fullcomp{irandfull};
+        currcomp{2} = splitcomp{isplit}{irandsplit};
+        % compute component congruence for all possible pairs between splits
+        compcongr = zeros(incomp,incomp,length(currcomp{1}));
+        for icompfull = 1:incomp
+          for icompsplit = 1:incomp
+            for iparam = 1:length(currcomp{1})
+              % perform model specific stuff
+              switch model
+                case {'parafac','parafac2','parafac2cp'}
+                  paramc1 = currcomp{1}{iparam}(:,icompfull);
+                  paramc2 = currcomp{2}{iparam}(:,icompsplit);
+                  % normalize
+                  paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                  paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                  % put in compsrc
+                  compcongr(icompfull,icompsplit,iparam) = abs(paramc1' * paramc2);
+                case {'spacetime','spacefsp'}
+                  switch iparam
+                    case {1,2}
+                      paramc1 = currcomp{1}{iparam}(:,icompfull);
+                      paramc2 = currcomp{2}{iparam}(:,icompsplit);
+                      % normalize
+                      paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                      paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                      % put in compsrc
+                      compcongr(icompfull,icompsplit,iparam) = abs(paramc1' * paramc2);
+                    case 3
+                      paramc1 = currcomp{1}{iparam}(:,icompfull);
+                      paramc2 = currcomp{2}{iparam}(:,icompsplit);
+                      % normalize
+                      paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                      paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                      % put in compsrc
+                      if numel(paramc1) == numel(paramc2)
+                        compcongr(icompfull,icompsplit,iparam) = abs(paramc1' * paramc2);
+                      else
+                        compcongr(icompfull,icompsplit,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
+                      end
+                    case 4
+                      switch model
+                        case 'spacetime'
+                          % create frequency specific phases weighted by spatial maps and frequency profiles
+                          A1 = currcomp{1}{1}(:,icompfull);
+                          A2 = currcomp{2}{1}(:,icompsplit);
+                          B1 = currcomp{1}{2}(:,icompfull);
+                          B2 = currcomp{2}{2}(:,icompsplit);
+                          S1 = currcomp{1}{4}(:,icompfull);
+                          S2 = currcomp{2}{4}(:,icompsplit);
+                          % construct complex site by freq matrix
+                          Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
+                          Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
+                          % scale with A
+                          Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
+                          Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
+                          % compute splitrelcoef over freqs, than abs, then average weighted with B
+                          srcoverfreq = zeros(numel(B1),1);
+                          for ifreq = 1:numel(B1)
+                            currS1 = Scomp1(:,ifreq);
+                            currS2 = Scomp2(:,ifreq);
+                            currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
+                            currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
+                            srcoverfreq(ifreq) = abs(currS1'*currS2);
+                          end
+                          srcsumfreq = sum(srcoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                          % put in compsrc
+                          compcongr(icompfull,icompsplit,iparam) = srcsumfreq;
+                        case 'spacefsp'
+                          % create frequency specific phases weighted by spatial maps and frequency profiles
+                          A1 = currcomp{1}{1}(:,icompfull);
+                          A2 = currcomp{2}{1}(:,icompsplit);
+                          B1 = currcomp{1}{2}(:,icompfull);
+                          B2 = currcomp{2}{2}(:,icompsplit);
+                          L1 = currcomp{1}{4}(:,:,icompfull);
+                          L2 = currcomp{2}{4}(:,:,icompsplit);
+                          % construct complex site by freq matrix
+                          Lcomp1 = exp(1i*2*pi*L1);
+                          Lcomp2 = exp(1i*2*pi*L2);
+                          % scale with A
+                          Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
+                          Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
+                          % compute splitrelcoef over freqs, than abs, then average weighted with B
+                          srcoverfreq = zeros(numel(B1),1);
+                          for ifreq = 1:numel(B1)
+                            currL1 = Lcomp1(:,ifreq);
+                            currL2 = Lcomp2(:,ifreq);
+                            currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
+                            currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
+                            srcoverfreq(ifreq) = abs(currL1'*currL2);
+                          end
+                          srcsumfreq = sum(srcoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                          % put in compsrc
+                          compcongr(icompfull,icompsplit,iparam) = srcsumfreq;
+                      end
+                    case 5
+                      switch Dmode
+                        case 'identity'
+                          % D is fixed with arbitrary order, make its splitrel coefficient irrelevant
+                          compcongr(icompfull,icompsplit,iparam) = 1;
+                        case 'kdepcomplex'
+                          % scale with B
+                          B1 = currcomp{1}{2}(:,icompfull);
+                          B2 = currcomp{2}{2}(:,icompsplit);
+                          D1 = currcomp{1}{5}(:,:,icompfull);
+                          D2 = currcomp{2}{5}(:,:,icompsplit);
+                          D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
+                          D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
+                          % vectorize
+                          paramc1 = D1(:);
+                          paramc2 = D2(:);
+                          % normalize
+                          paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
+                          paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                          % put in compsrc
+                          compcongr(icompfull,icompsplit,iparam) = abs(paramc1' * paramc2);
+                      end
+                  end
+              end
             end
           end
         end
-      end
-      % get splithalf coefficients by selecting most-similair unique pairings, but only for those that matter for the splithalf coeff
-      % 'clean' compcongr of estshcritval==0
-      compcongr(:,:,estshcritval==0) = NaN;
-      compsh   = zeros(incomp,length(currestcomp{1}));
-      congrsum = nansum(compcongr,3);
-      % match from perspective of first splithalf (i.e. find components of splithalf 2 that match those of splithalf 1)
-      % do so by starting from the component-pair with the highest similarity, then the next most similar, etc.
-      sh1ind   = zeros(1,incomp);
-      sh2ind   = zeros(1,incomp);
-      for icomp = 1:incomp
-        [dum, sh1ind(icomp)] = max(max(congrsum,[],2));
-        [dum, sh2ind(icomp)] = max(congrsum(sh1ind(icomp),:));
-        congrsum(sh1ind(icomp),:) = 0;
-        congrsum(:,sh2ind(icomp)) = 0;
-      end
-      % sanity check
-      if any(diff(sort(sh1ind))==0) || any(diff(sort(sh2ind))==0)
-        error('some components were selected multiple times')
-      end
-      % sort for convenience
-      [sh1ind, sortind] = sort(sh1ind);
-      sh2ind = sh2ind(sortind);
-      for iparam = 1:length(currestcomp{1})
-        compsh(:,iparam) = diag(compcongr(sh1ind,sh2ind,iparam));
-      end
-      % save compsh
-      partcombcompsh{irandpart1,irandpart2} = compsh;
-    end % irandpart2
-  end % irandpart1
+        % get splitrel coefficients by selecting most-similair unique pairings, but only for those that matter for the splitrel coeff
+        % 'clean' compcongr of estsrcritval==0
+        compcongr(:,:,estsrccritval==0) = NaN;
+        compsrc   = zeros(incomp,length(currcomp{1}));
+        congrsum = nansum(compcongr,3);
+        % match from perspective of first split (main) (i.e. find components of split 2 that match those of split 1)
+        % do so by starting from the component-pair with the highest similarity, then the next most similar, etc.
+        set1ind   = zeros(1,incomp);
+        set2ind   = zeros(1,incomp);
+        for icomp = 1:incomp
+          [dum, set1ind(icomp)] = max(max(congrsum,[],2));
+          [dum, set2ind(icomp)] = max(congrsum(set1ind(icomp),:));
+          congrsum(set1ind(icomp),:) = 0;
+          congrsum(:,set2ind(icomp)) = 0;
+        end
+        % sanity check
+        if any(diff(sort(set1ind))==0) || any(diff(sort(set2ind))==0)
+          error('some components were selected multiple times')
+        end
+        % sort for convenience
+        [set1ind, sortind] = sort(set1ind);
+        set2ind = set2ind(sortind);
+        for iparam = 1:length(currcomp{1})
+          compsrc(:,iparam) = diag(compcongr(set1ind,set2ind,iparam));
+        end
+        % save compsrc
+        partcombcompsrc{isplit}{irandfull,irandsplit} = compsrc;
+      end % irandsplit
+    end % irandfull
+  end % isplit
   
-  
-  % check whether any of the combinations of random starts of the partitions pass the splithalf criterion
-  % do a splithalf criterion check
-  partcombpass = false(size(partcombcompsh));
-  for irandpart1 = 1:nndegenrandprt1
-    for irandpart2 = 1:nndegenrandprt2
-      currcompsh = partcombcompsh{irandpart1,irandpart2};
-      pass = true;
-      for icomp = 1:incomp
-        for iparam = 1:length(estcomp{1}{1})
-          if currcompsh(icomp,iparam) < estshcritval(iparam)
-            pass = false;
+  % check whether any of the combinations of random starts of the partitions pass the splitrel criterion
+  % do a splitrel criterion check
+  partcombpass = cell(1,nsplit);
+  for isplit = 1:nsplit
+    partcombpass{isplit} = false(size(partcombcompsrc{isplit}));
+    for irandfull = 1:nndegenrandfull
+      for irandsplit = 1:nndegenrandsplit(isplit)
+        currcompsrc = partcombcompsrc{isplit}{irandfull,irandsplit};
+        pass = true;
+        for icomp = 1:incomp
+          for iparam = 1:length(splitcomp{1}{1})
+            if currcompsrc(icomp,iparam) < estsrccritval(iparam)
+              pass = false;
+            end
           end
         end
-      end
-      if pass
-        partcombpass(irandpart1,irandpart2) = true;
-      end
-    end % irandpart2
-  end % irandpart1
+        if pass
+          partcombpass{isplit}(irandfull,irandsplit) = true;
+        end
+      end % irandpart2
+    end % irandpart1
+  end
   
   % determine failure or succes of current incomp
   if ~degenflg
     critfailflg = 0;
-    if ~any(partcombpass(:))
-      critfailflg = 1;
+    for isplit = 1:nsplit
+      if ~any(partcombpass{isplit}(:))
+        critfailflg = 1;
+      end
     end
     
-    % pick best possible compsh to pass on, determine 'best' by highest minimal value
-    maxminshcoeff = cellfun(@min,cellfun(@min,partcombcompsh,'uniformoutput',0));
-    [dum maxind] = max(maxminshcoeff(:));
-    [rowind,colind] = ind2sub([nndegenrandprt1 nndegenrandprt2],maxind);
-    compsh = partcombcompsh{rowind,colind};
-    % save which is 'best' by setting it to 2 in partcombpass
-    partcombpass(rowind,colind) = 2;
+    % pick best possible compsrc to pass on, determine 'best' by highest minimal value
+    compsrc = NaN([size(compsrc) nsplit]);
+    for isplit = 1:nsplit
+      maxminsrccoeff = cellfun(@min,cellfun(@min,partcombcompsrc{isplit},'uniformoutput',0));
+      [dum maxind] = max(maxminsrccoeff(:));
+      [rowind,colind] = ind2sub([nndegenrandfull nndegenrandsplit(isplit)],maxind);
+      compsrc(:,:,isplit) = partcombcompsrc{isplit}{rowind,colind};
+    end
   else
     critfailflg = false; % most accurate given degenflg is false
   end
   
   % save incomp specifics
-  allcomp{incomp}{1}        = estcomp{1};
-  allcomp{incomp}{2}        = estcomp{2};
-  allpartcombcompsh{incomp} = partcombcompsh;
-  allcompsh{incomp}         = compsh;
-  allrandomstat{incomp}{1}  = randomstat1;
-  allrandomstat{incomp}{2}  = randomstat2;
+  allpartcombcompsrc{incomp}  = partcombcompsrc;
+  allcompsrc{incomp}          = compsrc;
+  allrandomstatfull{incomp}   = randomstatfull;
+  allrandomstatsplit{incomp}  = randomstatsplit;
+  
   
   
   
   %%%%%%%%%%%%%%%%%%%%%%%%%%
   %%% determine incomp succes
   % Act on critfailflg and degenflg
-  disp(['split-half: lowest relevant absolute split-half coefficient was ' num2str(min(min(compsh(:,estshcritval~=0))))]);
+  disp(['split-reliability: lowest relevant absolute split-reliability coefficient were ' num2str(min(min(compsrc(:,estsrccritval~=0,:))),'% .2f')]);
   if critfailflg || degenflg
     % When current incomp fails, decrease incomp.
     % Then, incomp-1 has either been performed or not
@@ -1666,17 +1664,17 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     
     % update fail fields
     if ~degenflg
-      disp(['split-half: several components did not reach split-half criterion of ' num2str(estshcritval)]);
-      compshfail = compsh;
-      randomstat1fail = randomstat1;
-      randomstat2fail = randomstat2;
-      failreason = 'split-half criterion';
+      disp(['split-reliability: one or more components did not reach split-reliability criterion of ' num2str(estsrccritval)]);
+      compsrcfail         = compsrc;
+      randomstatfullfail  = randomstatfull;
+      randomstatsplitfail = randomstatsplit;
+      stopreason          = 'split-reliability criterion';
     elseif degenflg
-      disp('split-half: random initializations for both partitions only returned likely degenerate solutions')
-      compshfail = compsh;
-      randomstat1fail = randomstat1;
-      randomstat2fail = randomstat2;
-      failreason = 'degeneracy';
+      disp('split-reliability: random initializations only returned likely degenerate solutions')
+      compsrcfail         = compsrc;
+      randomstatfullfail  = randomstatfull;
+      randomstatsplitfail = randomstatsplit;
+      stopreason          = 'degeneracy';
     end
     ncompsucc{incomp} = false;
     % decrease incomp by 1
@@ -1684,14 +1682,14 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     
     % check for incomp == 0
     if incomp == 0
-      warning('split-half: NO COMPONENTS REACHED SPLIT-HALF CRITERION');
+      warning('split-reliability: NO COMPONENTS REACHED SPLIT-RELIABILITY CRITERION');
       % set 'succes' status and final number of components
-      succes = true;
-      ncomp  = 1;
-      compshsucc = [];
-      randomstat1succ = [];
-      randomstat2succ = [];
-      failreason = ['split-half criterion fail at ncomp = 1'];
+      succes              = true;
+      ncomp               = 1;
+      compsrcsucc         = [];
+      randomstatfullsucc  = [];
+      randomstatsplitsucc = [];
+      stopreason          = 'split-reliability criterion fail at ncomp = 1';
       break
     end
     
@@ -1719,18 +1717,18 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
     % Then, find the closest fail. If it is incomp+1, succes = true. If not, increment up until max.
     
     % update succes fields and ncompsucc
-    compshsucc = compsh;
-    randomstat1succ = randomstat1;
-    randomstat2succ = randomstat2;
-    ncompsucc{incomp} = true;
+    compsrcsucc         = compsrc;
+    randomstatfullsucc  = randomstatfull;
+    randomstatsplitsucc = randomstatsplit;
+    ncompsucc{incomp}   = true;
     
     % check whether maximum has been reached, and increment incomp intelligently otherwise
     if incomp==estnum(2)
-      disp(['split-half: succesfully reached a priori determined maximum of ' num2str(estnum(2)) ' components']);
-      compshfail = [];
-      randomstat1fail = [];
-      randomstat2fail = [];
-      failreason = ['split-half stopped: reached a priori maximum of ' num2str(estnum(2)) ' components'];
+      disp(['split-reliability: succesfully reached a priori determined maximum of ' num2str(estnum(2)) ' components']);
+      compsrcfail         = [];
+      randomstatfullfail  = [];
+      randomstatsplitfail = [];
+      stopreason          = ['reached a priori maximum of ' num2str(estnum(2)) ' components'];
       % set succes status
       succes = true;
       ncomp  = incomp;
@@ -1772,90 +1770,63 @@ while ~succes % the logic used here is identical as in corcondiag, they should b
   %%%%%%%%%%%%%%%%%%%%%%%%%%
   
 end % incomp
-disp(['split-half: final number of components = ' num2str(ncomp)]);
+disp(['split-reliability: final number of components = ' num2str(ncomp)]);
 
 
-
-%
-% FIXME: NO MODEL SPECIFIC COEFFICIENTS HERE YET!!!!
-% FIXME: the below piece of code is shit and should be reimplemented to handle flexible non-linearly increasing not-starting-from-1 ncomp's
-% Calcute cross-ncomp congruence
-% the organization is as follows:
-% crossncomp{i} = all cross-comp calculations started from ncomp = i
-% crossncomp{i}{j} = cross-comp calculations of ncomp = i, with ncomp = j
-% crossncomp{i}{j} = I*J matrix with congruence coefficents between all components
-% nparam      = numel(estcomp{1});
-% ncrossncomp = length(allcomp);
-% ncompindex  = estnum(1):ncrossncomp; % index of all cross ncomp calculations
-% crossncomp  = cell(1,ncrossncomp);
-% % loop over number of comps in allcomp
-% for incomp = ncompindex
-%   remcomp = ncompindex;
-%   remcomp(incomp) = []; % remaining ncomps to calculate over
-%   % loop over cross-ncomp-calculations
-%   for incross = 1:length(remcomp)
-%     currncross = remcomp(incross);
-%     % set n's and preset crossn
-%     nseedcomp = incomp;
-%     ntargcomp = currncross;
-%     crossn = zeros(2,nparam,nseedcomp,ntargcomp);
-%     % loop over parts
-%     for ipart = 1:2;
-%       currseed = allcomp{incomp}{ipart};
-%       currtarg = allcomp{currncross}{ipart};
-%       % loop over parameters
-%       for iparam = 1:nparam
-%         currseedparam = currseed{iparam};
-%         currtargparam = currtarg{iparam};
-%         % loop over components of seed
-%         for icompseed = 1:nseedcomp
-%           if ndims(currseedparam)==3 || (ndims(currseedparam)==2 && size(currseedparam,2)~=nseedcomp)
-%             currseedcomp = currseedparam(:,:,icompseed);
-%             currseedcomp = reshape(permute(currseedcomp,[1 3 2]),[size(currseedcomp,1)*size(currseedcomp,2) size(currseedcomp,3)]);
-%           else
-%             currseedcomp = currseedparam(:,icompseed);
-%           end
-%           % loop over components of target
-%           for icomptarg = 1:ntargcomp
-%             if ndims(currtargparam)==3 || (ndims(currtargparam)==2 && size(currtargparam,2)~=ntargcomp)
-%               currtargcomp = currtargparam(:,:,icomptarg);
-%               currtargcomp = reshape(permute(currtargcomp,[1 3 2]),[size(currtargcomp,1)*size(currtargcomp,2) size(currtargcomp,3)]);
-%             else
-%               currtargcomp = currtargparam(:,icomptarg);
-%             end
-%             if (strncmp(model,'parafac2',8) && specmodes(iparam)==2) || ~all(size(currseedcomp)==size(currtargcomp))
-%               crossn(ipart,iparam,icompseed,icomptarg) = 0;
-%             else
-%               currseedcomp = currseedcomp ./ sqrt(sum(abs(currseedcomp).^2));
-%               currtargcomp = currtargcomp ./ sqrt(sum(abs(currtargcomp).^2));
-%               crossn(ipart,iparam,icompseed,icomptarg) = abs(currseedcomp' * currtargcomp);
-%             end
-%           end % end loop over target components
-%         end  % end loop over seed components
-%       end % end loop over parameters
-%     end % loop over parts
-%     % mean over parameters and mean over partitions
-%     crossn = squeeze(mean(mean(crossn,2),1));
-%     crossncomp{incomp}{incross} = crossn;
-%   end % end loop over cross-ncomp-calculations
-% end % end loop over number of comps in allcomp
-
-
-% create splithalfstat
-splithalfstat.ncomp             = ncomp;
-splithalfstat.splithcsucc       = compshsucc;
-splithalfstat.splithcfail       = compshfail;
-splithalfstat.crosscompcongr    = [];
-splithalfstat.randomstat1succ   = randomstat1succ;
-splithalfstat.randomstat2succ   = randomstat2succ;
-splithalfstat.randomstat1fail   = randomstat1fail;
-splithalfstat.randomstat2fail   = randomstat2fail;
-splithalfstat.failreason        = failreason;
-splithalfstat.allcomp           = allcomp;
-splithalfstat.allcompsh         = allcompsh;
-splithalfstat.allpartcombcompsh = allpartcombcompsh;
-splithalfstat.allrandomstat     = allrandomstat;
-
+% create splitrelstat
+if newsplitrel
+  splitrelstat.ncomp               = ncomp;
+  splitrelstat.splitrelcsucc       = compsrcsucc;
+  splitrelstat.splitrelcfail       = compsrcfail;
+  splitrelstat.randomstatfullsucc  = randomstatfullsucc;
+  splitrelstat.randomstatfullfail  = randomstatfullfail;
+  splitrelstat.randomstatsplitsucc = randomstatsplitsucc;
+  splitrelstat.randomstatsplitfail = randomstatsplitfail;
+  splitrelstat.stopreason          = stopreason;
+  splitrelstat.allcompsrc          = allcompsrc;
+  splitrelstat.allpartcombcompsrc  = allpartcombcompsrc;
+  splitrelstat.allrandomstatfull   = allrandomstatfull;
+  splitrelstat.allrandomstatsplit  = allrandomstatsplit;
+else
+  %%% backwards compatability per August 2016 for oldsplithalf
+  splitrelstat.ncomp             = ncomp;
+  if isempty(compsrcsucc)
+    splitrelstat.splithcsucc     = [];
+  else
+    splitrelstat.splithcsucc     = compsrcsucc(:,:,2); % first is between split1 and split1, 2 is between split1 and split2
+  end
+  if isempty(compsrcfail)
+    splitrelstat.splithcfail     = []; % first is between split1 and split1, 2 is between split1 and split2
+  else
+    splitrelstat.splithcfail     = compsrcfail(:,:,2); % first is between split1 and split1, 2 is between split1 and split2
+  end
+  if isempty(compsrcsucc)
+    splitrelstat.randomstat1succ = [];
+    splitrelstat.randomstat2succ = [];
+  else
+    splitrelstat.randomstat1succ = randomstatsplitsucc{1};
+    splitrelstat.randomstat2succ = randomstatsplitsucc{2};
+  end
+  if isempty(compsrcfail)
+    splitrelstat.randomstat1fail = [];
+    splitrelstat.randomstat2fail = [];
+  else
+    splitrelstat.randomstat1fail = randomstatsplitfail{1};
+    splitrelstat.randomstat2fail = randomstatsplitfail{2};
+  end
+  splitrelstat.failreason        = stopreason;
+  splitrelstat.allcomp           = [];
+  splitrelstat.allrandomstat     = allrandomstatsplit;
+  splitrelstat.allcompsh         = allcompsrc;
+  splitrelstat.allpartcombcompsh = allpartcombcompsrc;
+  for icorr = 1:numel(allcompsrc)
+    if ~isempty(allcompsrc{icorr})
+      splitrelstat.allcompsh{icorr}         = splitrelstat.allcompsh{icorr}(:,:,2); % first is between split1 and split1, 2 is between split1 and split2 
+      splitrelstat.allpartcombcompsh{icorr} = allpartcombcompsrc{icorr}{2}; % first is between split1 and split1, 2 is between split1 and split2 
+    end
+  end
+  %%% backwards compatability per August 2016 for oldsplithalf
+end
 
 
 
@@ -2154,7 +2125,7 @@ for irand1 = 1:nrand
                 % normalize
                 paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
                 paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                % put in compsh
+                % put in compsrc
                 compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
               case {'spacetime','spacefsp'}
                 switch iparam
@@ -2164,7 +2135,7 @@ for irand1 = 1:nrand
                     % normalize
                     paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
                     paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
+                    % put in compsrc
                     compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
                   case 3
                     paramc1 = currcomp{1}{iparam}(:,icompr1);
@@ -2172,7 +2143,7 @@ for irand1 = 1:nrand
                     % normalize
                     paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
                     paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                    % put in compsh
+                    % put in compsrc
                     if numel(paramc1) == numel(paramc2)
                       compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
                     else
@@ -2195,17 +2166,17 @@ for irand1 = 1:nrand
                         Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
                         Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
                         % compute congruence over freqs, than abs, then average weighted with B
-                        shoverfreq = zeros(numel(B1),1);
+                        sroverfreq = zeros(numel(B1),1);
                         for ifreq = 1:numel(B1)
                           currS1 = Scomp1(:,ifreq);
                           currS2 = Scomp2(:,ifreq);
                           currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
                           currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
-                          shoverfreq(ifreq) = abs(currS1'*currS2);
+                          sroverfreq(ifreq) = abs(currS1'*currS2);
                         end
-                        shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                        % put in compsh
-                        compcongr(icompr1,icompr2,iparam) = shsumfreq;
+                        srsumfreq = sum(sroverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                        % put in compsrc
+                        compcongr(icompr1,icompr2,iparam) = srsumfreq;
                       case 'spacefsp'
                         % create frequency specific phases weighted by spatial maps and frequency profiles
                         A1 = currcomp{1}{1}(:,icompr1);
@@ -2221,17 +2192,17 @@ for irand1 = 1:nrand
                         Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
                         Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
                         % compute congruence over freqs, than abs, then average weighted with B
-                        shoverfreq = zeros(numel(B1),1);
+                        sroverfreq = zeros(numel(B1),1);
                         for ifreq = 1:numel(B1)
                           currL1 = Lcomp1(:,ifreq);
                           currL2 = Lcomp2(:,ifreq);
                           currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
                           currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
-                          shoverfreq(ifreq) = abs(currL1'*currL2);
+                          sroverfreq(ifreq) = abs(currL1'*currL2);
                         end
-                        shsumfreq = sum(shoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                        % put in compsh
-                        compcongr(icompr1,icompr2,iparam) = shsumfreq;
+                        srsumfreq = sum(sroverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                        % put in compsrc
+                        compcongr(icompr1,icompr2,iparam) = srsumfreq;
                     end
                   case 5
                     switch Dmode
@@ -2252,7 +2223,7 @@ for irand1 = 1:nrand
                         % normalize
                         paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
                         paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                        % put in compsh
+                        % put in compsrc
                         compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
                     end
                 end
@@ -2283,7 +2254,7 @@ for irand1 = 1:nrand
       for iparam = 1:nparam
         compcongrsel(:,iparam) = diag(compcongr(r1ind,r2ind,iparam));
       end
-      % save compsh
+      % save compsrc
       congrallrp(irand1,irand2,:,:) = compcongrsel;
     end
   end % irand2
