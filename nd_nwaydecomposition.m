@@ -20,11 +20,11 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 % Ad2:
 % The number of components to extract from the numerical array needs to be determined empirically (similar to ICA).
-% This is the case for all of the supported models. This functions can be used for this purpose using 4 different
+% This is the case for all of the supported models. This function can be used for this purpose using 4 different
 % strategies:
-% 1) split-reliablility of the array. This strategy allows for increasing the number of components until a reliability criterion 
+% 1) split-reliablility of the array. This strategy increasse the number of components until a reliability criterion 
 %    is no longer reached. This criterion is based on a statistic that assesses the similarity between components of the full data
-%    and splits of the data (e.g. sets of trials), and ranges between 0 and 1 (identical). The separate splits of the data need to be given in a 
+%    and of componets of splits of the data (e.g. sets of trials). The separate splits of the data need to be given in a 
 %    separate field in the data, next to the full N-way array. (The splits can have dimensions that are different from the full array)
 % 2) core-consistency diagnostic. This approach uses a statistic which can be viewed as a measures of noise being modelled
 %    and, as such, is as an indication of whether the model with a certain number of components is still appropriate
@@ -101,7 +101,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %                                                        2: inner dim of inner-product                     (i.e. the incomplete dim) (only one allowed)
 %                                                        3: dim over which inner-products will be computed (i.e. the estimating dim) (only one allowed)
 %        SPACEFSP/SPACETIME
-%   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use (default = 'identity')
+%   cfg.Dmode                = string, 'identity', 'kdepcomplex', type of D to estimate/use. Default = 'identity', 'kdepcomplex' is not advised.
 %
 %
 %      -Using distributed computing to run random starts in parallel-
@@ -118,11 +118,11 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %       CFG.NCOMPEST - Methods for determining the number of components to extract
 %             splitrel: Determines the number of *reliable* components to extract. Extract components from the full data and N splits of the data (e.g. odd/even trials), and judge 
 %                         similiarity (coef. 0<->1) between components from the main data and each of the splits. If similarity of each parameter surpasses its criterion for each of 
-%                         the splits, increase the number of components (otherwise decrease).
+%                         the splits, increase the number of components. Otherwise decrease till the criterion is satisfied.
 %                         The criterion is set per parameter using cfg.ncompestsrcritval. Set the criterion to zero to ignore parameters.
-%                         Advised for all models. See cfg.ncompestsrcritval & cfg.ncompestsrdatparam & cfg.ncompeststart/end/step
+%                         Applicable and advised for all models. See cfg.ncompestsrcritval & cfg.ncompestsrdatparam & cfg.ncompeststart/end/step
 %                         To obtain a split-reliability estimate for a fixed number of componenents, set cfg.ncompeststart/end to the same number, and set cfg.ncompestsrcritval to NaN for the parameters that
-%                         should determine the spilt-reliability coefficient.
+%                         should determine the spilt-reliability coefficient (0 for the rest).
 %                         (see any of the three reference paper, and Bro 1998, Multi-way Analysis in the Food Industry.)
 %           corcondiag: Extract components, and compute the Core Consistency Diagnostic (coef. 0<->1). This coefficient indicates whether the components reflect the N-way
 %                         structure of the data, or reflects noise. If the coefficients is lower than the criterion, decrease the number of components, otherwise, increase the number.
@@ -146,7 +146,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %    Possible additional output fields:
 %            t3core: a Tucker3 model core-array (vectorized) (not possible for all models)
 %        randomstat: structure containing statistics of random estimation of final decomposition (if randomly started)
-%     splitrelstat: structure containing statistics for split-half component number estimation procedure
+%      splitrelstat: structure containing statistics for split-half component number estimation procedure
 %    corcondiagstat: structure containing statistics for corcondiag component number estimation procedure
 %
 %
