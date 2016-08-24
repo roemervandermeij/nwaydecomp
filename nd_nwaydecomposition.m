@@ -162,7 +162,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % (experimental)
 % cfg.distcomp.system          = 'p2p'
 % cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))  (for p2p)
-%
+% cfg.ncompestsrcritjudge      = 'meanoversplits' or 'minofsplits'
 %
 
 %
@@ -228,6 +228,7 @@ cfg.ncompestend         = ft_getopt(cfg, 'ncompestend',            50);
 cfg.ncompeststep        = ft_getopt(cfg, 'ncompeststep',           1);
 cfg.ncompestsrdatparam  = ft_getopt(cfg, 'ncompestsrdatparam',     []);
 cfg.ncompestsrcritval   = ft_getopt(cfg, 'ncompestsrcritval',      0.7); % expanded to all paramameters later
+cfg.ncompestsrcritjudge = ft_getopt(cfg, 'ncompestsrcritjudge',    'minofsplits');
 cfg.specialdims         = ft_getopt(cfg, 'specialdims',            []); % parafac2 specific
 cfg.ncompestvarinc      = ft_getopt(cfg, 'ncompestvarinc',         []);
 cfg.Dmode               = ft_getopt(cfg, 'Dmode',                  'identity'); %  spacefsp/spacetime specific
@@ -651,18 +652,19 @@ end
 if ~exist('dat','var')
   dat         = data.(cfg.datparam);
 end
-model         = cfg.model;
-niter         = cfg.numiter;
-convcrit      = cfg.convcrit;
-degencrit     = cfg.degencrit;
-ncomp         = cfg.ncomp;
-nrand         = cfg.randstart;
-nrandestcomp  = cfg.ncompestrandstart;
-estnum        = [cfg.ncompeststart cfg.ncompestend cfg.ncompeststep];
-estsrcritval  = cfg.ncompestsrcritval;
-distcomp      = cfg.distcomp;
-expvarinc     = cfg.ncompestvarinc;
-corconval     = cfg.ncompestcorconval;
+model          = cfg.model;
+niter          = cfg.numiter;
+convcrit       = cfg.convcrit;
+degencrit      = cfg.degencrit;
+ncomp          = cfg.ncomp;
+nrand          = cfg.randstart;
+nrandestcomp   = cfg.ncompestrandstart;
+estnum         = [cfg.ncompeststart cfg.ncompestend cfg.ncompeststep];
+estsrcritval   = cfg.ncompestsrcritval;
+estsrcritjudge = cfg.ncompestsrcritjudge;
+distcomp       = cfg.distcomp;
+expvarinc      = cfg.ncompestvarinc;
+corconval      = cfg.ncompestcorconval;
 % set model specific ones and create modelopt
 switch cfg.model
   case 'parafac'
@@ -715,7 +717,7 @@ switch cfg.ncompest
     end
     
     % perform splitrel component number estimate
-    [ncomp, splitrelstat] = splitrel(model, dat, datsplit, nrandestcomp, estnum, estsrcritval, niter, convcrit, degencrit, distcomp, oldsplithalf, modelopt{:}); % subfunction
+    [ncomp, splitrelstat] = splitrel(model, dat, datsplit, nrandestcomp, estnum, estsrcritval, estsrcritjudge, niter, convcrit, degencrit, distcomp, oldsplithalf, modelopt{:}); % subfunction
         
     % extract startval if nrand is the same
     if ~oldsplithalf && (nrandestcomp==nrand) 
@@ -1337,7 +1339,7 @@ corcondiagstat.ncompsucc       = ncompsucc;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% Subfunction for cfg.ncompest = 'splitrel'             %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [ncomp,splitrelstat] = splitrel(model, datfull, datsplit, nrand, estnum, estsrccritval, niter, convcrit, degencrit, distcomp, oldsplithalf, varargin)
+function [ncomp,splitrelstat] = splitrel(model, datfull, datsplit, nrand, estnum, estsrccritval, estsrcritjudge, niter, convcrit, degencrit, distcomp, oldsplithalf, varargin)
 
 % get model specific options from keyval
 switch model
@@ -1622,37 +1624,8 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
     end % irandfull
   end % isplit
   
-  % check whether any of the combinations of random starts of the partitions pass the splitrel criterion
-  % do a splitrel criterion check
-  partcombpass = cell(1,nsplit);
-  for isplit = 1:nsplit
-    partcombpass{isplit} = false(size(partcombcompsrc{isplit}));
-    for irandfull = 1:nndegenrandfull
-      for irandsplit = 1:nndegenrandsplit(isplit)
-        currcompsrc = partcombcompsrc{isplit}{irandfull,irandsplit};
-        pass = true;
-        for icomp = 1:incomp
-          for iparam = 1:length(splitcomp{1}{1})
-            if currcompsrc(icomp,iparam) < estsrccritval(iparam)
-              pass = false;
-            end
-          end
-        end
-        if pass
-          partcombpass{isplit}(irandfull,irandsplit) = true;
-        end
-      end % irandpart2
-    end % irandpart1
-  end
-  
   % determine failure or succes of current incomp
   if ~degenflg
-    critfailflg = 0;
-    for isplit = 1:nsplit
-      if ~any(partcombpass{isplit}(:))
-        critfailflg = 1;
-      end
-    end
     
     % pick best possible compsrc to pass on, determine 'best' by highest minimal value
     compsrc = NaN([incomp numel(splitcomp{1}{1}) nsplit]);
@@ -1662,6 +1635,32 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
       [rowind,colind] = ind2sub([nndegenrandfull nndegenrandsplit(isplit)],maxind);
       compsrc(:,:,isplit) = partcombcompsrc{isplit}{rowind,colind};
     end
+    
+    % deal with multiple splits
+    switch estsrcritjudge
+      case 'meanoversplits'
+        if newsplitrel
+          compsrc = mean(compsrc,3);
+        else
+          %%% backwards compatability per August 2016 for oldsplithalf
+          if ~isempty(compsrc)
+            compsrc = compsrc(:,:,2);
+          end
+          %%% backwards compatability per August 2016 for oldsplithalf
+        end
+      case 'minofsplits'
+        % do nothing
+      otherwise
+        error('specified cfg.ncompestsrcritjudge not supported')
+    end
+    
+    % check whether the best possible compsrc's failed
+    if any(any(any(compsrc < repmat(estsrccritval,[incomp 1 size(compsrc,3)]))))
+      critfailflg = true;
+    else
+      critfailflg = false;
+    end
+    
   else
     critfailflg = false; % most accurate given degenflg is false
   end
@@ -1678,7 +1677,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
   %%%%%%%%%%%%%%%%%%%%%%%%%%
   %%% determine incomp succes
   % Act on critfailflg and degenflg
-  disp(['split-reliability: lowest relevant absolute split-reliability coefficient were ' num2str(min(min(compsrc(:,estsrccritval~=0,:))),'% .2f')]);
+  disp(['split-reliability: lowest relevant absolute split-reliability coefficient were ' num2str(min(min(compsrc(:,estsrccritval~=0,:),[],1),[],2),'% .2f')]);
   if critfailflg || degenflg
     %%%%% FAIL
     
