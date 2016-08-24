@@ -162,6 +162,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % (experimental)
 % cfg.distcomp.system          = 'p2p'
 % cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))  (for p2p)
+% cfg.distcomp.qsuboptions     = string, (torque only) additional options command-line options for qsub specified as a string
 % cfg.ncompestsrcritjudge      = 'meanoversplits' or 'minofsplits'
 %
 
@@ -244,6 +245,7 @@ cfg.distcomp.inputsaveprefix  = ft_getopt(cfg.distcomp, 'inputsaveprefix',    []
 cfg.distcomp.matlabcmd        = ft_getopt(cfg.distcomp, 'matlabcmd',          'matlab'); % i.e. current dir
 cfg.distcomp.torquequeue      = ft_getopt(cfg.distcomp, 'torquequeue',        'batch');
 cfg.distcomp.p2presubdel      = ft_getopt(cfg.distcomp, 'p2presubdel',        60*60*24*3);
+cfg.distcomp.qsuboptions      = ft_getopt(cfg.distcomp, 'qsuboptions',        []);
 cfg.distcomp.mpctpoolsize     = ft_getopt(cfg.distcomp, 'mpctpoolsize',       []);
 cfg.distcomp.mpctcluster      = ft_getopt(cfg.distcomp, 'mpctcluster',        []);
 if strcmp(cfg.distcomp.system,'p2p') && isempty(cfg.distcomp.p2presubdel)
@@ -1947,7 +1949,7 @@ if ~isempty(distcomp.system)
         case 'torque'
           % increment timreq (should really be done based on size of data)
           distcomp.timreq = distcomp.timreq * ceil(ncomp/10);
-          distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'options','-V'};
+          distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'options',['-V ', distcomp.qsuboptions]};
           distcompfun = @qsubcellfun;
         otherwise
           error('distributed computing system not supported')
