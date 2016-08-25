@@ -1598,7 +1598,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
         % get splitrel coefficients by selecting most-similair unique pairings, but only for those that matter for the splitrel coeff
         % 'clean' compcongr of estsrcritval==0
         compcongr(:,:,estsrccritval==0) = NaN;
-        compsrc   = zeros(incomp,length(currcomp{1}));
+        compsrc  = zeros(incomp,length(currcomp{1}));
         congrsum = nansum(compcongr,3);
         % match from perspective of first split (main) (i.e. find components of split 2 that match those of split 1)
         % do so by starting from the component-pair with the highest similarity, then the next most similar, etc.
@@ -1629,10 +1629,17 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
   % determine failure or succes of current incomp
   if ~degenflg
     
-    % pick best possible compsrc to pass on, determine 'best' by highest minimal value
+    % pick best possible compsrc to pass on per split, 'best' = randinitcomb with highest minimum of src - criterion
     compsrc = NaN([incomp numel(splitcomp{1}{1}) nsplit]);
     for isplit = 1:nsplit
-      maxminsrccoeff = cellfun(@min,cellfun(@min,partcombcompsrc{isplit},'uniformoutput',0));
+      currcompsrc = partcombcompsrc{isplit};
+      for irandfull = 1:nndegenrandfull
+        for irandsplit = 1:nndegenrandsplit(isplit)
+          currcompsrc{irandfull,irandsplit} = currcompsrc{irandfull,irandsplit} - repmat(estsrccritval,[incomp 1]);
+          currcompsrc{irandfull,irandsplit} = currcompsrc{irandfull,irandsplit}(:,estsrccritval~=0);
+        end
+      end
+      maxminsrccoeff = cellfun(@min,cellfun(@min,currcompsrc,'uniformoutput',0));
       [dum maxind] = max(maxminsrccoeff(:));
       [rowind,colind] = ind2sub([nndegenrandfull nndegenrandsplit(isplit)],maxind);
       compsrc(:,:,isplit) = partcombcompsrc{isplit}{rowind,colind};
