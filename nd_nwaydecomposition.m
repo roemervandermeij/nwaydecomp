@@ -2010,6 +2010,8 @@ if ~isempty(distcomp.system)
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       %%%% Matlab PARFOR distribution of random initializations
       % pool is opened and closed by toplevel
+      % first, check wether parfeval is available
+      useparfeval = ~verLessThan('matlab','8.2'); % (<2013b) this is a safe gamble, it might be available earlier though
       
       %%% The below code is identical to local computation specified below except for parfor, keep it as such
       % allocate
@@ -2037,26 +2039,74 @@ if ~isempty(distcomp.system)
           error('model not yet supported in automatic random starting')
       end
       % start distribution
-      disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using MATLABs distributed computing toolbox']);
-      parfor irand = 1:nrand
-        disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' started']);
-        % set up general options
-        opt = {'dispprefix', [dispprefix 'distributed random start ' num2str(irand) ': ']};
-        switch model
-          case 'parafac'
-            [randcomp{irand},    randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
-          case 'parafac2'
-            [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
-          case 'parafac2cp'
-            [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
-          case 'spacetime'
-            [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
-          case 'spacefsp'
-            [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
-          otherwise
-            error('model not yet supported in automatic random starting')
+      if ~useparfeval
+        
+        % PARFOR way of handling parallelization
+        disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using MATLABs parallel computing toolbox']);
+        parfor irand = 1:nrand
+          disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' started']);
+          % set up general options
+          opt = {'dispprefix', [dispprefix 'distr. random start ' num2str(irand) ': ']};
+          switch model
+            case 'parafac'
+              [randcomp{irand},    randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+            case 'parafac2'
+              [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+            case 'parafac2cp'
+              [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+            case 'spacetime'
+              [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+            case 'spacefsp'
+              [randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
+            otherwise
+              error('model not yet supported in automatic random starting')
+          end
+          disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished: error-term = ' num2str(randssqres(irand))]);
         end
-        disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished: error-term = ' num2str(randssqres(irand))]);
+        
+      else
+        
+        % PARFEVAL way of handling parallelization
+        disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using MATLABs parallel computing toolbox']);
+        % explicitly clear jobid (necessary)
+        clear jobid
+        for irand = 1:nrand
+          disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' started']);
+          % set up general options
+          opt = {'niter', niter, 'convcrit', convcrit, 'dispprefix',[dispprefix 'distr. random start ' num2str(irand) ': ']};
+          switch model
+            case 'parafac'
+              jobid(irand) = parfeval(['nwaydecomp_' model], 5, dat, ncomp, 'compmodes', compmodes, opt{:});
+            case 'parafac2'
+              jobid(irand) = parfeval(['nwaydecomp_' model], 6, dat, ncomp, specmodes, 'compmodes', compmodes, opt{:});
+            case 'parafac2cp'
+              jobid(irand) = parfeval(['nwaydecomp_' model], 6, dat, ncomp, specmodes, 'compmodes', compmodes, opt{:}, 'ssqdatnoncp', ssqdatnoncp);
+            case 'spacetime'
+              jobid(irand) = parfeval(['nwaydecomp_' model], 6, dat, ncomp, freq, 'Dmode', Dmode, opt{:});
+            case 'spacefsp'
+              jobid(irand) = parfeval(['nwaydecomp_' model], 6, dat, ncomp, 'Dmode', Dmode, opt{:});
+            otherwise
+              error('model not yet supported in automatic random starting')
+          end
+        end
+        % fetch outputs
+        for irand = 1:nrand
+          switch model
+            case 'parafac'
+              [currid, randcomp{irand},    randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = fetchNext(jobid);
+            case 'parafac2'
+              [currid, randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = fetchNext(jobid);
+            case 'parafac2cp'
+              [currid, randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = fetchNext(jobid);
+            case 'spacetime'
+              [currid, randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = fetchNext(jobid);
+            case 'spacefsp'
+              [currid, randcomp{irand},dum,randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = fetchNext(jobid);
+            otherwise
+              error('model not yet supported in automatic random starting')
+          end
+          disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(currid) ' (' num2str(irand) '/' num2str(nrand) ') finished: exp. var. = ' num2str(randexpvar(irand),'%-2.2f') '%']);
+        end
       end
       
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2098,7 +2148,7 @@ else
     randexpvar(irand)    = rndexpvar;
     randscaling{irand}   = rndscaling;
     randtuckcongr{irand} = rndtuckcongr;
-    disp([dispprefix 'random start ' num2str(irand) ': decomposition of random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished: error-term = ' num2str(rndssqres)]);
+    disp([dispprefix 'random start ' num2str(irand) ': decomposition of random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished: exp. var. = ' num2str(rndexpvar,'%-2.2f') '%']);
   end
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
