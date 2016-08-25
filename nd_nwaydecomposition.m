@@ -200,7 +200,7 @@ ft_preamble loadvar data
 %%% backwards compatability per August 2016 for oldsplithalf
 % first, check for renamed splitrel options
 if isfield(cfg,'ncompest') && strcmp(cfg.ncompest,'splithalf')
-  warning(['You are using the old format for specifying split-reliability. Consider using the new method (see documentation), which computes '...
+  warning(['You are using the old style split-reliability. Consider using the new method (see documentation), which computes '...
     ' a reliability coefficient between components of the full data, and components of each split (which can be more than one split).'...
     ' When doing so, the output fields will be slightly different. '])
   oldsplithalf = true;
@@ -210,6 +210,10 @@ end
 cfg = ft_checkconfig(cfg, 'renamedval',  {'ncompest', 'splithalf', 'splitrel'});
 cfg = ft_checkconfig(cfg, 'renamed',     {'ncompestshdatparam', 'ncompestsrdatparam'});
 cfg = ft_checkconfig(cfg, 'renamed',     {'ncompestshcritval', 'ncompestsrcritval'});
+% check for only two splits
+if oldsplithalf && ~any(strcmp(cfg.ncompestsrdatparam,{'oddeven','oddevenavg'})) && numel(data.(cfg.ncompestsrdatparam))~=2
+  error('Old style split-reliability can only be used with two splits')
+end
 %%% backwards compatability per August 2016 for oldsplithalf
 
 
@@ -1643,26 +1647,26 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
       [dum maxind] = max(maxminsrccoeff(:));
       [rowind,colind] = ind2sub([nndegenrandfull nndegenrandsplit(isplit)],maxind);
       compsrc(:,:,isplit) = partcombcompsrc{isplit}{rowind,colind};
+    end    
+    
+    %%% backwards compatability per August 2016 for oldsplithalf
+    if ~newsplitrel
+      if ~isempty(compsrc)
+        compsrc = compsrc(:,:,2);
+      end  
     end
+    %%% backwards compatability per August 2016 for oldsplithalf
     
     % deal with multiple splits
     switch estsrcritjudge
       case 'meanoversplits'
-        if newsplitrel
-          compsrc = mean(compsrc,3);
-        else
-          %%% backwards compatability per August 2016 for oldsplithalf
-          if ~isempty(compsrc)
-            compsrc = compsrc(:,:,2);
-          end
-          %%% backwards compatability per August 2016 for oldsplithalf
-        end
+        compsrc = mean(compsrc,3);
       case 'minofsplits'
         % do nothing
       otherwise
         error('specified cfg.ncompestsrcritjudge not supported')
     end
-    
+  
     % check whether the best possible compsrc's failed
     if any(any(any(compsrc < repmat(estsrccritval,[incomp 1 size(compsrc,3)]))))
       critfailflg = true;
@@ -1834,16 +1838,8 @@ if newsplitrel
 else
   %%% backwards compatability per August 2016 for oldsplithalf
   splitrelstat.ncomp             = ncomp;
-  if isempty(compsrcsucc)
-    splitrelstat.splithcsucc     = [];
-  else
-    splitrelstat.splithcsucc     = compsrcsucc(:,:,2); % first is between split1 and split1, 2 is between split1 and split2
-  end
-  if isempty(compsrcfail)
-    splitrelstat.splithcfail     = []; % first is between split1 and split1, 2 is between split1 and split2
-  else
-    splitrelstat.splithcfail     = compsrcfail(:,:,2); % first is between split1 and split1, 2 is between split1 and split2
-  end
+  splitrelstat.splithcsucc       = compsrcsucc;
+  splitrelstat.splithcfail       = compsrcfail;
   if isempty(compsrcsucc)
     splitrelstat.randomstat1succ = [];
     splitrelstat.randomstat2succ = [];
