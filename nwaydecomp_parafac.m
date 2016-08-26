@@ -76,6 +76,8 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 %    You should have received a copy of the GNU General Public License
 %    along with Nwaydecomp. If not, see <http://www.gnu.org/licenses/>.
 
+% start execution timer
+stopwatch = tic;
 
 % Get the optional input arguments
 keyvalcheck(varargin, 'optional', {'compmodes','niter','convcrit','startval','dispprefix','holdmodes'});
@@ -426,6 +428,10 @@ end
 if max(tuckcongr) >= 0.85
   disp([dispprefix 'Warning: some components are highly correlated, model might be degenerate'])
 end
+
+% report execution time
+exectime = toc(stopwatch);
+disp([dispprefix 'execution took ' num2str(exectime,'%.1f') ' seconds'])
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%   POSTPROCESSING END    %%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

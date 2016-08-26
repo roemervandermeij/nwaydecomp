@@ -2067,11 +2067,10 @@ if ~isempty(distcomp.system)
       else
         
         % PARFEVAL way of handling parallelization
-        % explicitly clear jobid (necessary)
+        % explicitly clear jobid
         clear jobid
         % start timing
         stopwatch  = tic;
-        submittime = cell(1,nrand);
         timeused   = NaN(1,nrand);
         for irand = 1:nrand
           disp([dispprefix 'parallel random initialization ' num2str(irand) ' of ' num2str(nrand) ' submitted']);
@@ -2091,7 +2090,6 @@ if ~isempty(distcomp.system)
             otherwise
               error('model not yet supported in automatic random starting')
           end
-          submittime{irand} = tic;
         end
         % fetch outputs
         for irand = 1:nrand
@@ -2109,13 +2107,24 @@ if ~isempty(distcomp.system)
             otherwise
               error('model not yet supported in automatic random starting')
           end
-          timeused(currid) = toc(submittime{currid});
+          % extract execution time from diary
+          diaryout = jobid(currid).Diary;
+          exectime = diaryout(strfind(diaryout,'execution took'):end);
+          nind     = regexp(exectime,'[0-9]');
+          if ~isempty(nind)  
+            if numel(nind) == 1
+              exectime = exectime(nind);
+            else
+              exectime = exectime(nind(1):nind(2));
+            end
+            exectime = str2double(exectime);
+            timeused(currid) = exectime;
+          end
           disp([dispprefix 'parallel random initialization ' num2str(currid) ' (' num2str(irand) '/' num2str(nrand) ') returned and took ' num2str(timeused(currid),'%.1f') ' sec | exp. var. = ' num2str(randexpvar(irand),'%-2.2f') '%']);
         end
-        
+        % display time used (from qsubcellfun)
+        fprintf('computational time = %.1f sec, elapsed = %.1f sec, speedup %.1f x\n', nansum(timeused), toc(stopwatch), nansum(timeused)/toc(stopwatch));
       end
-      % display time used (from qsubcellfun)
-      fprintf('computational time = %.1f sec, elapsed = %.1f sec, speedup %.1f x\n', nansum(timeused), toc(stopwatch), nansum(timeused)/toc(stopwatch));
 
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -81,6 +81,8 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core,Pkl] = nwaydecomp
 %  TO DO: the main stop conditions could be more principled wrt ssqres
 %  TO DO: adjust the model formulation so conj(dat) is no longer necessary
 
+% start execution timer
+stopwatch = tic;
 
 % Get the optional input arguments
 keyvalcheck(varargin, 'optional', {'niter','convcrit','startval','dispprefix','precision','optimmode','degencrit','Dmode','holdparam'});
@@ -1098,7 +1100,9 @@ end
 scaling = scaling .*  10.^datexpfac;
 ssqres  = ssqres  .* (10.^datexpfac).^2; 
 
-
+% report execution time
+exectime = toc(stopwatch);
+disp([dispprefix 'execution took ' num2str(exectime,'%.1f') ' seconds'])
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%   POSTPROCESSING END    %%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
