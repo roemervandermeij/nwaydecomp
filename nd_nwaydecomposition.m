@@ -1906,7 +1906,7 @@ if ~isempty(distcomp.system)
       %%%% QSUB distribution of random initializations
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       disp([dispprefix 'random start: determining optimal starting values from random initialization']);
-      disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using ' distcomp.system]);
+      disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations will be distributed using ' distcomp.system]);
       
       % prepare cell arrays for input
       cellncomp         = repmat({ncomp},[nrand 1]);
@@ -2021,6 +2021,7 @@ if ~isempty(distcomp.system)
       randscaling   = cell(1,nrand);
       randtuckcongr = cell(1,nrand);
       disp([dispprefix 'random start: determining optimal starting values from random initialization']);
+      disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations will be distributed using MATLABs parallel computing toolbox']);
       % first, gather inputs for each mode (necessary for parfor)
       % set up general options
       opt = {'niter', niter, 'convcrit', convcrit};
@@ -2042,11 +2043,10 @@ if ~isempty(distcomp.system)
       if ~useparfeval
         
         % PARFOR way of handling parallelization
-        disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using MATLABs parallel computing toolbox']);
         parfor irand = 1:nrand
-          disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' started']);
+          disp([dispprefix 'parallel random initialization ' num2str(irand) ' of ' num2str(nrand) ' started']);
           % set up general options
-          opt = {'dispprefix', [dispprefix 'distr. random start ' num2str(irand) ': ']};
+          opt = {'dispprefix', [dispprefix 'parallel random start ' num2str(irand) ': ']};
           switch model
             case 'parafac'
               [randcomp{irand},    randssqres(irand),randexpvar(irand),randscaling{irand},randtuckcongr{irand}] = feval(['nwaydecomp_' model], modelinput{:}, opt{:});
@@ -2061,19 +2061,22 @@ if ~isempty(distcomp.system)
             otherwise
               error('model not yet supported in automatic random starting')
           end
-          disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished: error-term = ' num2str(randssqres(irand))]);
+          disp([dispprefix 'parallel random initialization ' num2str(irand) ' of ' num2str(nrand) ' finished:  exp. var. = ' num2str(randexpvar(irand),'%-2.2f') '%']);
         end
         
       else
         
         % PARFEVAL way of handling parallelization
-        disp([dispprefix 'random start: decomposition of ' num2str(nrand) ' random initializations started using MATLABs parallel computing toolbox']);
         % explicitly clear jobid (necessary)
         clear jobid
+        % start timing
+        stopwatch  = tic;
+        submittime = cell(1,nrand);
+        timeused   = NaN(1,nrand);
         for irand = 1:nrand
-          disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(irand) ' of ' num2str(nrand) ' started']);
+          disp([dispprefix 'parallel random initialization ' num2str(irand) ' of ' num2str(nrand) ' submitted']);
           % set up general options
-          opt = {'niter', niter, 'convcrit', convcrit, 'dispprefix',[dispprefix 'distr. random start ' num2str(irand) ': ']};
+          opt = {'niter', niter, 'convcrit', convcrit, 'dispprefix',[dispprefix 'parallel random start ' num2str(irand) ': ']};
           switch model
             case 'parafac'
               jobid(irand) = parfeval(['nwaydecomp_' model], 5, dat, ncomp, 'compmodes', compmodes, opt{:});
@@ -2088,6 +2091,7 @@ if ~isempty(distcomp.system)
             otherwise
               error('model not yet supported in automatic random starting')
           end
+          submittime{irand} = tic;
         end
         % fetch outputs
         for irand = 1:nrand
@@ -2105,10 +2109,14 @@ if ~isempty(distcomp.system)
             otherwise
               error('model not yet supported in automatic random starting')
           end
-          disp([dispprefix 'random start ' num2str(irand) ': distributed random initialization ' num2str(currid) ' (' num2str(irand) '/' num2str(nrand) ') finished: exp. var. = ' num2str(randexpvar(irand),'%-2.2f') '%']);
+          timeused(currid) = toc(submittime{currid});
+          disp([dispprefix 'parallel random initialization ' num2str(currid) ' (' num2str(irand) '/' num2str(nrand) ') returned and took ' num2str(timeused(currid),'%.1f') ' sec | exp. var. = ' num2str(randexpvar(irand),'%-2.2f') '%']);
         end
+        
       end
-      
+      % display time used (from qsubcellfun)
+      fprintf('computational time = %.1f sec, elapsed = %.1f sec, speedup %.1f x\n', nansum(timeused), toc(stopwatch), nansum(timeused)/toc(stopwatch));
+
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     otherwise
