@@ -374,25 +374,25 @@ if ~isempty(cfg.distcomp.system)
         hascluster  = ~isempty(cfg.distcomp.mpctcluster);
         if haspoolsize && ~hascluster
           if ~verLessThan('matlab','8.2') % parpool is a 2013b function
-            poolobj = parpool(cfg.distcomp.mpctpoolsize);
+            poolobj = parpool(cfg.distcomp.mpctpoolsize,'IdleTimeout',inf);
           else
             matlabpool(cfg.distcomp.mpctpoolsize);
           end
         elseif ~haspoolsize && hascluster
           if ~verLessThan('matlab','8.2') % parpool is a 2013b function
-            poolobj = parpool(cfg.distcomp.mpctcluster);
+            poolobj = parpool(cfg.distcomp.mpctcluster,'IdleTimeout',inf);
           else
             matlabpool(cfg.distcomp.mpctcluster);
           end
         elseif haspoolsize && hascluster
           if ~verLessThan('matlab','8.2') % parpool is a 2013b function
-            poolobj = parpool(cfg.distcomp.mpctcluster,cfg.distcomp.mpctpoolsize);
+            poolobj = parpool(cfg.distcomp.mpctcluster,cfg.distcomp.mpctpoolsize,'IdleTimeout',inf);
           else
             matlabpool(cfg.distcomp.mpctcluster,cfg.distcomp.mpctpoolsize);
           end
         else
           if ~verLessThan('matlab','8.2')  % parpool is a 2013b function
-            poolobj = parpool;
+            poolobj = parpool('IdleTimeout',inf);
           else
             matlabpool;
           end
