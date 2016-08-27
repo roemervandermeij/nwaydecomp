@@ -2112,11 +2112,7 @@ if ~isempty(distcomp.system)
           exectime = diaryout(strfind(diaryout,'execution took'):end);
           nind     = regexp(exectime,'[0-9]');
           if ~isempty(nind)  
-            if numel(nind) == 1
-              exectime = exectime(nind);
-            else
-              exectime = exectime(nind(1):nind(2));
-            end
+            exectime = exectime(nind(1):nind(end));
             exectime = str2double(exectime);
             timeused(currid) = exectime;
           end
