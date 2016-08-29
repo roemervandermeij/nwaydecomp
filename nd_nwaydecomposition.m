@@ -368,36 +368,7 @@ if ~isempty(cfg.distcomp.system)
       end
       
     case 'matlabpct'
-      if ft_hastoolbox('distcomp')
-        % open pool, always create a new pool to not interfere with concurrent work
-        haspoolsize = ~isempty(cfg.distcomp.mpctpoolsize);
-        hascluster  = ~isempty(cfg.distcomp.mpctcluster);
-        if haspoolsize && ~hascluster
-          if ~verLessThan('matlab','8.2') % parpool is a 2013b function
-            poolobj = parpool(cfg.distcomp.mpctpoolsize,'IdleTimeout',inf);
-          else
-            matlabpool(cfg.distcomp.mpctpoolsize);
-          end
-        elseif ~haspoolsize && hascluster
-          if ~verLessThan('matlab','8.2') % parpool is a 2013b function
-            poolobj = parpool(cfg.distcomp.mpctcluster,'IdleTimeout',inf);
-          else
-            matlabpool(cfg.distcomp.mpctcluster);
-          end
-        elseif haspoolsize && hascluster
-          if ~verLessThan('matlab','8.2') % parpool is a 2013b function
-            poolobj = parpool(cfg.distcomp.mpctcluster,cfg.distcomp.mpctpoolsize,'IdleTimeout',inf);
-          else
-            matlabpool(cfg.distcomp.mpctcluster,cfg.distcomp.mpctpoolsize);
-          end
-        else
-          if ~verLessThan('matlab','8.2')  % parpool is a 2013b function
-            poolobj = parpool('IdleTimeout',inf);
-          else
-            matlabpool;
-          end
-        end
-      else
+      if ~ft_hastoolbox('distcomp')
         error('MATLAB Parallel Computing Toolbox needs to be present in order to use it for distributed computing')
       end
       
@@ -411,12 +382,12 @@ end
 
 % disp progress
 disp(['N-way decomposition using ' upper(cfg.model) ' will be performed on ''' cfg.datparam ''''])
-if ~isempty(cfg.ncompest)
+if ~strcmp(cfg.ncompest,'no')
   disp(['number of components to extract will be determined using method ''' cfg.ncompest ''''])
   disp([num2str(cfg.ncompestrandstart) ' random initializations will be used during component number estimation' ])
   disp([num2str(cfg.randstart) ' random initializations will be used for the final decomposition' ])
 else
-  disp([num2st(cfg.ncomp) ' components will be extracted'])
+  disp([num2str(cfg.ncomp) ' components will be extracted'])
   disp([num2str(cfg.randstart) ' random initializations will be used ' ])
 end
 disp(['decompositions will stop once the convergence criterion of ' num2str(cfg.convcrit) ' has been reached, or after ' num2str(cfg.numiter) ' iterations' ])
@@ -592,7 +563,7 @@ if any(strcmp(cfg.model,{'spacefsp','spacetime'}))
   elseif strcmp(data.dimord,'chan_freq_epoch_tap')
     % Handle output from custom code with dimensions 'chan_freq_epoch_tap'
     % disp progress
-    disp('input for SPACE is the result of custom code')
+    disp('input for SPACE is non-FieldTrip')
     if ndimsdat~=4 || ~datcomplex
       error('input for SPACE needs to be complex-valued and have 4 dimensions organized as ''chan_freq_epoch_tap''')
     end
@@ -852,15 +823,6 @@ switch cfg.model
     end
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% if pool is present, close it, no longer needed
-if strcmp(cfg.distcomp.system,'matlabpct')
-  if ~verLessThan('matlab','8.2') % parpool is a 2013b function
-    delete(poolobj);
-  else
-    matlabpool close
-  end
-end
 
 % Transform comp to compoment-specific cell-arrays
 outputcomp = cell(1,ncomp);
@@ -2009,10 +1971,41 @@ if ~isempty(distcomp.system)
     case 'matlabpct'  
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       %%%% Matlab PARFOR distribution of random initializations
-      % pool is opened and closed by toplevel
+      % pool is opened and closed here to hopefully circumvent memory leak in matlab's PCT
       % first, check wether parfeval is available
       useparfeval = ~verLessThan('matlab','8.2'); % (<2013b) this is a safe gamble, it might be available earlier though
-      
+     
+      %%% open pool
+      % open pool, always create a new pool to not interfere with concurrent work
+      haspoolsize = ~isempty(distcomp.mpctpoolsize);
+      hascluster  = ~isempty(distcomp.mpctcluster);
+      if haspoolsize && ~hascluster
+        if ~verLessThan('matlab','8.2') % parpool is a 2013b function
+          poolobj = parpool(distcomp.mpctpoolsize,'IdleTimeout',inf);
+        else
+          matlabpool(distcomp.mpctpoolsize);
+        end
+      elseif ~haspoolsize && hascluster
+        if ~verLessThan('matlab','8.2') % parpool is a 2013b function
+          poolobj = parpool(distcomp.mpctcluster,'IdleTimeout',inf);
+        else
+          matlabpool(distcomp.mpctcluster);
+        end
+      elseif haspoolsize && hascluster
+        if ~verLessThan('matlab','8.2') % parpool is a 2013b function
+          poolobj = parpool(distcomp.mpctcluster,distcomp.mpctpoolsize,'IdleTimeout',inf);
+        else
+          matlabpool(distcomp.mpctcluster,distcomp.mpctpoolsize);
+        end
+      else
+        if ~verLessThan('matlab','8.2')  % parpool is a 2013b function
+          poolobj = parpool('IdleTimeout',inf);
+        else
+          matlabpool;
+        end
+      end
+      %%% open pool
+
       %%% The below code is identical to local computation specified below except for parfor, keep it as such
       % allocate
       randssqres    = zeros(1,nrand);
@@ -2121,7 +2114,16 @@ if ~isempty(distcomp.system)
         % display time used (from qsubcellfun)
         fprintf('computational time = %.1f sec, elapsed = %.1f sec, speedup %.1f x\n', nansum(timeused), toc(stopwatch), nansum(timeused)/toc(stopwatch));
       end
-
+      
+      %%% close pool
+      % if pool is present, close it, no longer needed
+      if ~verLessThan('matlab','8.2') % parpool is a 2013b function
+        delete(poolobj);
+      else
+        matlabpool close
+      end
+      %%% close pool
+      
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     otherwise
