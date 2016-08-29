@@ -87,7 +87,7 @@ stopwatch = tic;
 % Get the optional input arguments
 keyvalcheck(varargin, 'optional', {'niter','convcrit','startval','dispprefix','precision','optimmode','degencrit','Dmode','holdparam'});
 niter        = keyval('niter', varargin);         if isempty(niter),        niter         = 2500;                  end
-convcrit     = keyval('convcrit', varargin);      if isempty(convcrit),     convcrit      = 1e-6;                  end
+convcrit     = keyval('convcrit', varargin);      if isempty(convcrit),     convcrit      = 1e-8;                  end
 startval     = keyval('startval', varargin);
 dispprefix   = keyval('dispprefix', varargin); 
 precision    = keyval('precision', varargin);     if isempty(precision),    precision     = eps*1e7;               end
