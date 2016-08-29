@@ -22,9 +22,9 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % The number of components to extract from the numerical array needs to be determined empirically (similar to ICA).
 % This is the case for all of the supported models. This function can be used for this purpose using 4 different
 % strategies:
-% 1) split-reliablility of the array. This strategy increasse the number of components until a reliability criterion 
+% 1) split-reliablility of the array. This strategy increasse the number of components until a reliability criterion
 %    is no longer reached. This criterion is based on a statistic that assesses the similarity between components of the full data
-%    and of componets of splits of the data (e.g. sets of trials). The separate splits of the data need to be given in a 
+%    and of componets of splits of the data (e.g. sets of trials). The separate splits of the data need to be given in a
 %    separate field in the data, next to the full N-way array. (The splits can have dimensions that are different from the full array)
 % 2) core-consistency diagnostic. This approach uses a statistic which can be viewed as a measures of noise being modelled
 %    and, as such, is as an indication of whether the model with a certain number of components is still appropriate
@@ -116,8 +116,8 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 %
 %       CFG.NCOMPEST - Methods for determining the number of components to extract
-%             splitrel: Determines the number of *reliable* components to extract. Extract components from the full data and N splits of the data (e.g. odd/even trials), and judge 
-%                         similiarity (coef. 0<->1) between components from the main data and each of the splits. If similarity of each parameter surpasses its criterion for each of 
+%             splitrel: Determines the number of *reliable* components to extract. Extract components from the full data and N splits of the data (e.g. odd/even trials), and judge
+%                         similiarity (coef. 0<->1) between components from the main data and each of the splits. If similarity of each parameter surpasses its criterion for each of
 %                         the splits, increase the number of components. Otherwise decrease till the criterion is satisfied.
 %                         The criterion is set per parameter using cfg.ncompestsrcritval. Set the criterion to zero to ignore parameters.
 %                         Applicable and advised for all models. See cfg.ncompestsrcritval & cfg.ncompestsrdatparam & cfg.ncompeststart/end/step
@@ -164,6 +164,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))  (for p2p)
 % cfg.distcomp.qsuboptions     = string, (torque only) additional options command-line options for qsub specified as a string
 % cfg.ncompestsrcritjudge      = 'meanoversplits' or 'minofsplits'
+% cfg.checkpointpath           = path to use for checkpointing, save entire workspace minus data to path with unique ID, useful for dist. comp. jobs getting cancelled etc
 %
 
 %
@@ -239,6 +240,7 @@ cfg.ncompestvarinc      = ft_getopt(cfg, 'ncompestvarinc',         []);
 cfg.Dmode               = ft_getopt(cfg, 'Dmode',                  'identity'); %  spacefsp/spacetime specific
 cfg.ncompestcorconval   = ft_getopt(cfg, 'ncompestcorconval',      0.7);
 cfg.t3core              = ft_getopt(cfg, 't3core',                 'no');
+cfg.checkpointpath      = ft_getopt(cfg, 'checkpointpath',         []);
 
 % set distributed computing random starting defaults and throw errors
 cfg.distcomp                  = ft_getopt(cfg, 'distcomp',                    []);
@@ -694,10 +696,10 @@ switch cfg.ncompest
     end
     
     % perform splitrel component number estimate
-    [ncomp, splitrelstat] = splitrel(model, dat, datsplit, nrandestcomp, estnum, estsrcritval, estsrcritjudge, niter, convcrit, degencrit, distcomp, oldsplithalf, modelopt{:}); % subfunction
-        
+    [ncomp, splitrelstat] = splitrel(model, dat, datsplit, nrandestcomp, estnum, estsrcritval, estsrcritjudge, niter, convcrit, degencrit, distcomp, oldsplithalf, modelopt{:}, 'checkpointpath', cfg.checkpointpath); % subfunction
+    
     % extract startval if nrand is the same
-    if ~oldsplithalf && (nrandestcomp==nrand) 
+    if ~oldsplithalf && (nrandestcomp==nrand)
       if ~isempty(splitrelstat.randomstatfullsucc)
         startval   = splitrelstat.randomstatfullsucc.startvalglobmin;
         randomstat = splitrelstat.randomstatfullsucc;
@@ -712,15 +714,15 @@ switch cfg.ncompest
     warning('this is a very liberal method for component estimation')
     
     % estimate ncomp
-    [ncomp] = degeneracy(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, modelopt{:}); % subfunction
+    [ncomp] = degeneracy(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, modelopt{:}, 'checkpointpath', cfg.checkpointpath); % subfunction
     
   case 'minexpvarinc'
     % estimate ncomp
-    [ncomp] = minexpvarinc(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, expvarinc, modelopt{:}); % subfunction
+    [ncomp] = minexpvarinc(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, expvarinc, modelopt{:}, 'checkpointpath', cfg.checkpointpath); % subfunction
     
   case 'corcondiag'
     % estimate ncomp
-    [ncomp, corcondiagstat] = corcondiag(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, corconval, modelopt{:}); % subfunction
+    [ncomp, corcondiagstat] = corcondiag(model, dat, nrandestcomp, estnum, niter, convcrit, degencrit, distcomp, corconval, modelopt{:}, 'checkpointpath', cfg.checkpointpath); % subfunction
     
     % extract startval if nrand is the same
     if (nrandestcomp==nrand)
@@ -887,7 +889,7 @@ nwaycomp.scaling    = scaling;
 if isnumeric(nrand)
   nwaycomp.randomstat = randomstat;
 end
-if strcmp(cfg.ncompest,'splitrel') 
+if strcmp(cfg.ncompest,'splitrel')
   if ~oldsplithalf
     nwaycomp.splitrelstat = splitrelstat;
   else
@@ -938,6 +940,14 @@ function [ncomp] = degeneracy(model, dat, nrand, estnum, niter, convcrit, degenc
 
 % get model specific options from keyval
 % not necessary, not explicitly used
+checkpointpath = keyval('checkpointpath', varargin);
+if ~isempty(checkpointpath)
+  docheckpoint = true;
+  % create random identifier
+  checkpointid = num2str(sum(clock.*1e6));
+else
+  docheckpoint = false;
+end
 
 % Display start
 disp('degen-only: performing component number estimation by only checking degeneracy at each solution')
@@ -976,6 +986,15 @@ for incomp = 1:estnum(2)
     break
   end
   
+  %%%%%%%%%%%%%%%%%%%%%%%%%%
+  % save entire workspace except for the data in checkpoint if requested
+  if docheckpoint
+    cpfn    = [checkpointpath '_' checkpointid '_' 'incomp' num2str(incomp) '.mat'];
+    varlist = who;
+    varlist(strncmp(varlist,'dat',3)) = [];
+    save(cpfn,varlist{:},'-v7.3')
+  end
+  %%%%%%%%%%%%%%%%%%%%%%%%%%
   
   % If all checks are passed, update ncomp
   ncomp = incomp;
@@ -990,6 +1009,14 @@ function [ncomp] = minexpvarinc(model, dat, nrand, estnum, niter, convcrit, dege
 
 % get model specific options from keyval
 % not necessary, not explicitly used
+checkpointpath = keyval('checkpointpath', varargin);
+if ~isempty(checkpointpath)
+  docheckpoint = true;
+  % create random identifier
+  checkpointid = num2str(sum(clock.*1e6));
+else
+  docheckpoint = false;
+end
 
 % Display start
 disp('minexpvarinc: performing minimum increase in expvar component number estimation')
@@ -1025,6 +1052,16 @@ for incomp = 1:estnum(2)
     break
   end
   
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%
+  % save entire workspace except for the data in checkpoint if requested
+  if docheckpoint
+    cpfn    = [checkpointpath '_' checkpointid '_' 'incomp' num2str(incomp) '.mat'];
+    varlist = who;
+    varlist(strncmp(varlist,'dat',3)) = [];
+    save(cpfn,varlist{:},'-v7.3')
+  end
+  %%%%%%%%%%%%%%%%%%%%%%%%%%
   
   % Act on explained variance increase
   if incomp ~= 1
@@ -1067,6 +1104,14 @@ switch model
     Dmode = keyval('Dmode', varargin);
   otherwise
     error('model not supported')
+end
+checkpointpath = keyval('checkpointpath', varargin);
+if ~isempty(checkpointpath)
+  docheckpoint = true;
+  % create random identifier
+  checkpointid = num2str(sum(clock.*1e6));
+else
+  docheckpoint = false;
 end
 
 % Display start
@@ -1152,7 +1197,17 @@ while ~ncompfound % the logic used here is identical as in splitrel, they should
     critfailflg = false;
   end
   
-    
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%
+  % save entire workspace except for the data in checkpoint if requested
+  if docheckpoint
+    cpfn    = [checkpointpath '_' checkpointid '_' 'incomp' num2str(incomp) '.mat'];
+    varlist = who;
+    varlist(strncmp(varlist,'dat',3)) = [];
+    save(cpfn,varlist{:},'-v7.3')
+  end
+  %%%%%%%%%%%%%%%%%%%%%%%%%%
+  
   %%%%%%%%%%%%%%%%%%%%%%%%%%
   %%% determine incomp succes
   % Act on critfailflg and degenflg
@@ -1195,7 +1250,7 @@ while ~ncompfound % the logic used here is identical as in splitrel, they should
       corcondiagsucc = [];
       randomstatsucc = [];
       stopreason = 'core consistency diagnostic criterion fail at ncomp = 1';
- 
+      
     else % find a new incomp
       
       % first, sanity check
@@ -1329,6 +1384,14 @@ switch model
   otherwise
     error('model not supported')
 end
+checkpointpath = keyval('checkpointpath', varargin);
+if ~isempty(checkpointpath)
+  docheckpoint = true;
+  % create random identifier
+  checkpointid = num2str(sum(clock.*1e6));
+else
+  docheckpoint = false;
+end
 
 % get N
 nsplit = numel(datsplit);
@@ -1405,7 +1468,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
       end
     end
   end
-
+  
   
   %%%%
   % The splitrel logic is now as follows: the splitrel criterion fails, if the splitrel coeffcient is not surpassed for any combination of random starts of the splits with the main
@@ -1419,7 +1482,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
   else
     %%% backwards compatability per August 2016 for oldsplithalf
     % full data now becomes first split
-    fullcomp        = randomstatsplit{1}.startvalall(setdiff(1:nrand,randomstatsplit{1}.degeninit)); 
+    fullcomp        = randomstatsplit{1}.startvalall(setdiff(1:nrand,randomstatsplit{1}.degeninit));
     nndegenrandfull = numel(fullcomp);
     %%% backwards compatability per August 2016 for oldsplithalf
   end
@@ -1430,7 +1493,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
     splitcomp{isplit}        = randomstatsplit{isplit}.startvalall(setdiff(1:nrand,randomstatsplit{isplit}.degeninit));
     nndegenrandsplit(isplit) = numel(splitcomp{isplit});
   end
-   
+  
   % compute splitrel coeffcients for all possible pairs of random starts from the splits with the main
   partcombcompsrc = cell(1,nsplit);
   for isplit = 1:nsplit
@@ -1609,13 +1672,13 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
       [dum maxind] = max(maxminsrccoeff(:));
       [rowind,colind] = ind2sub([nndegenrandfull nndegenrandsplit(isplit)],maxind);
       compsrc(:,:,isplit) = partcombcompsrc{isplit}{rowind,colind};
-    end    
+    end
     
     %%% backwards compatability per August 2016 for oldsplithalf
     if ~newsplitrel
       if ~isempty(compsrc)
         compsrc = compsrc(:,:,2);
-      end  
+      end
     end
     %%% backwards compatability per August 2016 for oldsplithalf
     
@@ -1628,7 +1691,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
       otherwise
         error('specified cfg.ncompestsrcritjudge not supported')
     end
-  
+    
     % check whether the best possible compsrc's failed
     if any(any(any(compsrc < repmat(estsrccritval,[incomp 1 size(compsrc,3)]))))
       critfailflg = true;
@@ -1647,6 +1710,15 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
   allrandomstatsplit{incomp}  = randomstatsplit;
   
   
+  %%%%%%%%%%%%%%%%%%%%%%%%%%
+  % save entire workspace except for the data in checkpoint if requested
+  if docheckpoint
+    cpfn    = [checkpointpath '_' checkpointid '_' 'incomp' num2str(incomp) '.mat'];
+    varlist = who;
+    varlist(strncmp(varlist,'dat',3)) = [];
+    save(cpfn,varlist{:},'-v7.3')
+  end
+  %%%%%%%%%%%%%%%%%%%%%%%%%%
   
   
   %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1693,7 +1765,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
       stopreason          = 'split-reliability criterion fail at ncomp = 1';
       
     else % find a new incomp
-     
+      
       % first, sanity check
       if any(~[ncompsucc{1:incomp-1}])
         % this should not be possible
@@ -1719,7 +1791,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
     end
   else
     %%%%% SUCCESS
-
+    
     % When current incomp succeeds, increase incomp.
     % Then, incomp+i can either be at the maximum or not.
     % If at the maximum, succes = true.
@@ -1762,7 +1834,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
         end
         
         % find closest fail
-        nextfail = incomp + find(~cellfun(@isempty,ncompsucc(incomp+1:end)),1); 
+        nextfail = incomp + find(~cellfun(@isempty,ncompsucc(incomp+1:end)),1);
         
         % incomp+i found, check whether next ncomp was failing
         if nextfail == (incomp+1)
@@ -1778,6 +1850,7 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
     
   end
   %%%%%%%%%%%%%%%%%%%%%%%%%%
+  
   
 end % incomp
 disp(['split-reliability: final number of components = ' num2str(ncomp)]);
@@ -1823,8 +1896,8 @@ else
   splitrelstat.allpartcombcompsh = allpartcombcompsrc;
   for icorr = 1:numel(allcompsrc)
     if ~isempty(allcompsrc{icorr})
-      splitrelstat.allcompsh{icorr}         = splitrelstat.allcompsh{icorr}(:,:,2); % first is between split1 and split1, 2 is between split1 and split2 
-      splitrelstat.allpartcombcompsh{icorr} = allpartcombcompsrc{icorr}{2}; % first is between split1 and split1, 2 is between split1 and split2 
+      splitrelstat.allcompsh{icorr}         = splitrelstat.allcompsh{icorr}(:,:,2); % first is between split1 and split1, 2 is between split1 and split2
+      splitrelstat.allpartcombcompsh{icorr} = allpartcombcompsrc{icorr}{2}; % first is between split1 and split1, 2 is between split1 and split2
     end
   end
   %%% backwards compatability per August 2016 for oldsplithalf
@@ -1862,7 +1935,7 @@ end
 niter = round(niter); % just to make sure it's an integer
 if ~isempty(distcomp.system)
   switch distcomp.system
-   
+    
     case {'torque','p2p'}
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       %%%% QSUB distribution of random initializations
@@ -1966,15 +2039,15 @@ if ~isempty(distcomp.system)
       randtuckcongr = celltuckcongr(:).';
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-     
       
-    case 'matlabpct'  
+      
+    case 'matlabpct'
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       %%%% Matlab PARFOR distribution of random initializations
       % pool is opened and closed here to hopefully circumvent memory leak in matlab's PCT
       % first, check wether parfeval is available
       useparfeval = ~verLessThan('matlab','8.2'); % (<2013b) this is a safe gamble, it might be available earlier though
-     
+      
       %%% open pool
       % open pool, always create a new pool to not interfere with concurrent work
       haspoolsize = ~isempty(distcomp.mpctpoolsize);
@@ -2005,7 +2078,7 @@ if ~isempty(distcomp.system)
         end
       end
       %%% open pool
-
+      
       %%% The below code is identical to local computation specified below except for parfor, keep it as such
       % allocate
       randssqres    = zeros(1,nrand);
@@ -2104,7 +2177,7 @@ if ~isempty(distcomp.system)
           diaryout = jobid(currid).Diary;
           exectime = diaryout(strfind(diaryout,'execution took'):end);
           nind     = regexp(exectime,'[0-9]');
-          if ~isempty(nind)  
+          if ~isempty(nind)
             exectime = exectime(nind(1):nind(end));
             exectime = str2double(exectime);
             timeused(currid) = exectime;
