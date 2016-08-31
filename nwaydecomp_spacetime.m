@@ -1335,6 +1335,8 @@ if strcmp(normmode,'allsignBC')
   % if Dmode is identity, get sign, remove from B and C and flip Pkl 180 degrees (i.e. .* -1)
   signB = sign(B);
   signC = sign(C);
+  signB(signB==0) = 1;
+  signC(signC==0) = 1;
   % apply normalization dependent on Dmode
   switch Dmode
     case 'identity'
