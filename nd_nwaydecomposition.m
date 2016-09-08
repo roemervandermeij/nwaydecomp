@@ -81,9 +81,9 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %   cfg.ncomp                = number of components to extract
 %   cfg.ncompest             = 'no', 'splitrel', 'corcondiag', 'minexpvarinc', or 'degeneracy' (default = 'no'), see below (FIXME: complexicity of minexpvarinc and degeneracy should same as others)
 %   cfg.ncompestrandstart    = 'no' or number indicating amount of random starts for estimating component number (default = cfg.randstart)
-%   cfg.ncompeststart        = starting number of components to try to extract (default = 1) (used in splitrel/corcondiag)
-%   cfg.ncompestend          = maximum number of components to try to extract (default = 50) (used in splitrel/corcondiag)
-%   cfg.ncompeststep         = forward stepsize in ncomp estimation (default = 1) (backward is always 1; used in splitrel/corcondiag)
+%   cfg.ncompeststart        = number, starting number of components to try to extract (default = 1) (used in splitrel/corcondiag)
+%   cfg.ncompestend          = number, maximum number of components to try to extract (default = 50) (used in splitrel/corcondiag)
+%   cfg.ncompeststep         = number, forward stepsize in ncomp estimation (default = 1) (backward is always 1; used in splitrel/corcondiag)
 %   cfg.ncompestsrdatparam   = (for 'splitrel'): string containing field-name of partitioned data. Data should be kept in 1xN cell-array, each split in one cell
 %                              when using SPACE, one can also specify 'oddeven' as cfg.ncompestsrdatparam. In this case the data will be partioned using odd/even trials/epochs
 %   cfg.ncompestsrcritval    = (for 'splitrel'): scalar, or 1Xnparam vector, critical value to use for selecting number of components using splif-reliability (default = 0.7)
@@ -106,12 +106,13 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 %
 %      -Using distributed computing to run random starts in parallel-
 %   cfg.distcomp.system          = string, distributed computing system to use, 'torque' or 'matlabpct' ('torque' requires the qsub FieldTrip module on path, 'matlabpct' implementation is via parfor)
-%   cfg.distcomp.timreq          = scalar, (torque only) maximum time requirement in seconds of a random start (default = 60*60*24*1 (1 days))
-%   cfg.distcomp.memreq          = scalar, (torque only) maximum memory requirement in bytes of a random start (default is computed)
+%   cfg.distcomp.timreq          = number, (torque only) maximum time requirement in seconds of a random start (default = 60*60*24*1 (1 days))
+%   cfg.distcomp.memreq          = number, (torque only) maximum memory requirement in bytes of a random start (default is computed)
 %   cfg.distcomp.inputsaveprefix = string, (torque only) path/filename prefix for temporarily saving input data with a random name (default, saving is determined by the queue system)
 %   cfg.distcomp.matlabcmd       = string, (torque only) command to execute matlab (e.g. '/usr/local/MATLAB/R2012b/bin/matlab') (default = 'matlab')
 %   cfg.distcomp.torquequeue     = string, (torque only) name of Torque queue to submit to (default = 'batch')
-%   cfg.distcomp.mpctpoolsize    = scalar, (matlabpct only) number of workers to use (default is determined by matlab)
+%   cfg.distcomp.torquestack     = number, (torque only) number of random initializations to stack in one Torque job (default is 1, i.e. no stacking)
+%   cfg.distcomp.mpctpoolsize    = number, (matlabpct only) number of workers to use (default is determined by matlab)
 %   cfg.distcomp.mpctcluster     = Cluster object, (matlabpct only) Cluster object specifying PCT Cluster profile/parameters, see matlab help PARCLUSTER
 %
 %
@@ -250,6 +251,7 @@ cfg.distcomp.timreq           = ft_getopt(cfg.distcomp, 'timreq',             60
 cfg.distcomp.inputsaveprefix  = ft_getopt(cfg.distcomp, 'inputsaveprefix',    []); % i.e. current dir
 cfg.distcomp.matlabcmd        = ft_getopt(cfg.distcomp, 'matlabcmd',          'matlab'); % i.e. current dir
 cfg.distcomp.torquequeue      = ft_getopt(cfg.distcomp, 'torquequeue',        'batch');
+cfg.distcomp.torquestack      = ft_getopt(cfg.distcomp, 'torquestack',        1);
 cfg.distcomp.p2presubdel      = ft_getopt(cfg.distcomp, 'p2presubdel',        60*60*24*3);
 cfg.distcomp.qsuboptions      = ft_getopt(cfg.distcomp, 'qsuboptions',        []);
 cfg.distcomp.mpctpoolsize     = ft_getopt(cfg.distcomp, 'mpctpoolsize',       []);
@@ -1987,7 +1989,7 @@ if ~isempty(distcomp.system)
         case 'torque'
           % increment timreq (should really be done based on size of data)
           distcomp.timreq = distcomp.timreq * ceil(ncomp/10);
-          distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'options',['-V ', distcomp.qsuboptions]};
+          distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'stack',distcomp.torquestack,'options',['-V ', distcomp.qsuboptions]};
           distcompfun = @qsubcellfun;
         otherwise
           error('distributed computing system not supported')
