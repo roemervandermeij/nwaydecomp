@@ -137,7 +137,7 @@ if ~isa(dat,'double')
 end
 
 % throw errors related to NaNs
-if any(isnan(dat))
+if any(isnan(dat(:)))
   error('dat cannot contain NaNs')
 end
 
