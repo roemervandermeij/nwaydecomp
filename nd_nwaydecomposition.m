@@ -1554,22 +1554,20 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
                           B2 = currcomp{2}{2}(:,icompsplit);
                           S1 = currcomp{1}{4}(:,icompfull);
                           S2 = currcomp{2}{4}(:,icompsplit);
+                          % normalize
+                          A1 = A1 ./ sqrt(sum(abs(A1).^2));
+                          A2 = A2 ./ sqrt(sum(abs(A2).^2));
+                          B1 = B1 ./ sqrt(sum(abs(B1).^2));
+                          B2 = B2 ./ sqrt(sum(abs(B2).^2));
                           % construct complex site by freq matrix
-                          Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
-                          Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
+                          Scomp1 = exp(1i*2*pi*bsxfun(@times,S1,freq));
+                          Scomp2 = exp(1i*2*pi*bsxfun(@times,S2,freq));
                           % scale with A
-                          Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
-                          Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
+                          Scomp1 = bsxfun(@times,Scomp1,A1);
+                          Scomp2 = bsxfun(@times,Scomp2,A2);
                           % compute splitrelcoef over freqs, than abs, then average weighted with B
-                          srcoverfreq = zeros(numel(B1),1);
-                          for ifreq = 1:numel(B1)
-                            currS1 = Scomp1(:,ifreq);
-                            currS2 = Scomp2(:,ifreq);
-                            currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                            currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
-                            srcoverfreq(ifreq) = abs(currS1'*currS2);
-                          end
-                          srcsumfreq = sum(srcoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                          srcoverfreq = abs(diag(Scomp1'*Scomp2));
+                          srcsumfreq  = sum(srcoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
                           % put in compsrc
                           compcongr(icompfull,icompsplit,iparam) = srcsumfreq;
                         case 'spacefsp'
@@ -1580,22 +1578,20 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
                           B2 = currcomp{2}{2}(:,icompsplit);
                           L1 = currcomp{1}{4}(:,:,icompfull);
                           L2 = currcomp{2}{4}(:,:,icompsplit);
+                          % normalize
+                          A1 = A1 ./ sqrt(sum(abs(A1).^2));
+                          A2 = A2 ./ sqrt(sum(abs(A2).^2));
+                          B1 = B1 ./ sqrt(sum(abs(B1).^2));
+                          B2 = B2 ./ sqrt(sum(abs(B2).^2));
                           % construct complex site by freq matrix
                           Lcomp1 = exp(1i*2*pi*L1);
                           Lcomp2 = exp(1i*2*pi*L2);
                           % scale with A
-                          Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
-                          Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
+                          Lcomp1 = bsxfun(@times,Lcomp1,A1);
+                          Lcomp2 = bsxfun(@times,Lcomp2,A2);
                           % compute splitrelcoef over freqs, than abs, then average weighted with B
-                          srcoverfreq = zeros(numel(B1),1);
-                          for ifreq = 1:numel(B1)
-                            currL1 = Lcomp1(:,ifreq);
-                            currL2 = Lcomp2(:,ifreq);
-                            currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                            currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
-                            srcoverfreq(ifreq) = abs(currL1'*currL2);
-                          end
-                          srcsumfreq = sum(srcoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                          srcoverfreq = abs(diag(Lcomp1'*Lcomp2));
+                          srcsumfreq  = sum(srcoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
                           % put in compsrc
                           compcongr(icompfull,icompsplit,iparam) = srcsumfreq;
                       end
@@ -2339,22 +2335,20 @@ for irand1 = 1:nrand
                         B2 = currcomp{2}{2}(:,icompr2);
                         S1 = currcomp{1}{4}(:,icompr1);
                         S2 = currcomp{2}{4}(:,icompr2);
+                        % normalize
+                        A1 = A1 ./ sqrt(sum(abs(A1).^2));
+                        A2 = A2 ./ sqrt(sum(abs(A2).^2));
+                        B1 = B1 ./ sqrt(sum(abs(B1).^2));
+                        B2 = B2 ./ sqrt(sum(abs(B2).^2));
                         % construct complex site by freq matrix
-                        Scomp1 = exp(1i*2*pi*repmat(freq(:).',[size(A1,1) 1]).*repmat(S1,[1 size(B1,1)]));
-                        Scomp2 = exp(1i*2*pi*repmat(freq(:).',[size(A2,1) 1]).*repmat(S2,[1 size(B2,1)]));
+                        Scomp1 = exp(1i*2*pi*bsxfun(@times,S1,freq));
+                        Scomp2 = exp(1i*2*pi*bsxfun(@times,S2,freq));
                         % scale with A
-                        Scomp1 = Scomp1 .* repmat(A1,[1 size(B1,1)]);
-                        Scomp2 = Scomp2 .* repmat(A2,[1 size(B2,1)]);
-                        % compute congruence over freqs, than abs, then average weighted with B
-                        sroverfreq = zeros(numel(B1),1);
-                        for ifreq = 1:numel(B1)
-                          currS1 = Scomp1(:,ifreq);
-                          currS2 = Scomp2(:,ifreq);
-                          currS1 = currS1 ./ sqrt(sum(abs(currS1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                          currS2 = currS2 ./ sqrt(sum(abs(currS2).^2));
-                          sroverfreq(ifreq) = abs(currS1'*currS2);
-                        end
-                        srsumfreq = sum(sroverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                        Scomp1 = bsxfun(@times,Scomp1,A1);
+                        Scomp2 = bsxfun(@times,Scomp2,A2);
+                        % compute splitrelcoef over freqs, than abs, then average weighted with B
+                        sroverfreq = abs(diag(Scomp1'*Scomp2));
+                        srsumfreq  = sum(sroverfreq .* (B1.*B2)) ./ sum(B1.*B2);
                         % put in compsrc
                         compcongr(icompr1,icompr2,iparam) = srsumfreq;
                       case 'spacefsp'
@@ -2365,22 +2359,20 @@ for irand1 = 1:nrand
                         B2 = currcomp{2}{2}(:,icompr2);
                         L1 = currcomp{1}{4}(:,:,icompr1);
                         L2 = currcomp{2}{4}(:,:,icompr2);
+                        % normalize
+                        A1 = A1 ./ sqrt(sum(abs(A1).^2));
+                        A2 = A2 ./ sqrt(sum(abs(A2).^2));
+                        B1 = B1 ./ sqrt(sum(abs(B1).^2));
+                        B2 = B2 ./ sqrt(sum(abs(B2).^2));
                         % construct complex site by freq matrix
                         Lcomp1 = exp(1i*2*pi*L1);
                         Lcomp2 = exp(1i*2*pi*L2);
                         % scale with A
-                        Lcomp1 = Lcomp1 .* repmat(A1,[1 size(B1,1)]);
-                        Lcomp2 = Lcomp2 .* repmat(A2,[1 size(B2,1)]);
-                        % compute congruence over freqs, than abs, then average weighted with B
-                        sroverfreq = zeros(numel(B1),1);
-                        for ifreq = 1:numel(B1)
-                          currL1 = Lcomp1(:,ifreq);
-                          currL2 = Lcomp2(:,ifreq);
-                          currL1 = currL1 ./ sqrt(sum(abs(currL1).^2)); % not necessary now, but just in case we ever decide to not-normalize A
-                          currL2 = currL2 ./ sqrt(sum(abs(currL2).^2));
-                          sroverfreq(ifreq) = abs(currL1'*currL2);
-                        end
-                        srsumfreq = sum(sroverfreq .* (B1.*B2)) ./ sum(B1.*B2);
+                        Lcomp1 = bsxfun(@times,Lcomp1,A1);
+                        Lcomp2 = bsxfun(@times,Lcomp2,A2);
+                        % compute splitrelcoef over freqs, than abs, then average weighted with B
+                        sroverfreq = abs(diag(Lcomp1'*Lcomp2));
+                        srsumfreq  = sum(sroverfreq .* (B1.*B2)) ./ sum(B1.*B2);
                         % put in compsrc
                         compcongr(icompr1,icompr2,iparam) = srsumfreq;
                     end
