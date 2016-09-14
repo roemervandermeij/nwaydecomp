@@ -1509,117 +1509,125 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
         currcomp{2} = splitcomp{isplit}{irandsplit};
         % compute component congruence for all possible pairs between splits
         compcongr = zeros(incomp,incomp,length(currcomp{1}));
-        for icompfull = 1:incomp
-          for icompsplit = 1:incomp
-            for iparam = 1:length(currcomp{1})
-              % perform model specific stuff
-              switch model
-                case {'parafac','parafac2','parafac2cp'}
-                  paramc1 = currcomp{1}{iparam}(:,icompfull);
-                  paramc2 = currcomp{2}{iparam}(:,icompsplit);
+        for iparam = 1:length(currcomp{1})
+          % perform model specific stuff
+          switch model
+            case {'parafac','parafac2','parafac2cp'}
+              paramc1 = currcomp{1}{iparam};
+              paramc2 = currcomp{2}{iparam};
+              % normalize
+              paramc1 = bsxfun(@rdivide,paramc1,sqrt(sum(abs(paramc1).^2,1)));
+              paramc2 = bsxfun(@rdivide,paramc2,sqrt(sum(abs(paramc2).^2,1)));
+              % put in compsrc
+              compcongr(:,:,iparam) = abs(paramc1' * paramc2);
+            case {'spacetime','spacefsp'}
+              switch iparam
+                case {1,2}
+                  paramc1 = currcomp{1}{iparam};
+                  paramc2 = currcomp{2}{iparam};
                   % normalize
-                  paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                  paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                  paramc1 = bsxfun(@rdivide,paramc1,sqrt(sum(abs(paramc1).^2,1)));
+                  paramc2 = bsxfun(@rdivide,paramc2,sqrt(sum(abs(paramc2).^2,1)));
                   % put in compsrc
-                  compcongr(icompfull,icompsplit,iparam) = abs(paramc1' * paramc2);
-                case {'spacetime','spacefsp'}
-                  switch iparam
-                    case {1,2}
-                      paramc1 = currcomp{1}{iparam}(:,icompfull);
-                      paramc2 = currcomp{2}{iparam}(:,icompsplit);
+                  compcongr(:,:,iparam) = abs(paramc1' * paramc2);
+                case 3
+                  paramc1 = currcomp{1}{iparam};
+                  paramc2 = currcomp{2}{iparam};
+                  % normalize
+                  paramc1 = bsxfun(@rdivide,paramc1,sqrt(sum(abs(paramc1).^2,1)));
+                  paramc2 = bsxfun(@rdivide,paramc2,sqrt(sum(abs(paramc2).^2,1)));
+                  % put in compsrc
+                  if size(paramc1,1) == size(paramc2,1)
+                    compcongr(:,:,iparam) = abs(paramc1' * paramc2);
+                  else
+                    compcongr(:,:,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
+                  end
+                case 4
+                  switch model
+                    case 'spacetime'
+                      % create frequency specific phases weighted by spatial maps and frequency profiles
+                      A1 = currcomp{1}{1};
+                      A2 = currcomp{2}{1};
+                      B1 = currcomp{1}{2};
+                      B2 = currcomp{2}{2};
+                      S1 = currcomp{1}{4};
+                      S2 = currcomp{2}{4};
                       % normalize
-                      paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                      paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                      A1 = bsxfun(@rdivide,A1,sqrt(sum(abs(A1).^2,1)));
+                      A2 = bsxfun(@rdivide,A2,sqrt(sum(abs(A2).^2,1)));
+                      B1 = bsxfun(@rdivide,B1,sqrt(sum(abs(B1).^2,1)));
+                      B2 = bsxfun(@rdivide,B2,sqrt(sum(abs(B2).^2,1)));
+                      % construct spatial phase maps
+                      Scomp1 = ipermute(exp(1i*2*pi*bsxfun(@times,permute(S1,[3 1 2]),freq')),[3 1 2]);
+                      Scomp2 = ipermute(exp(1i*2*pi*bsxfun(@times,permute(S2,[3 1 2]),freq')),[3 1 2]);
+                      % scale with A
+                      Scomp1 = bsxfun(@times,Scomp1,A1);
+                      Scomp2 = bsxfun(@times,Scomp2,A2);
+                      % compute splitrelcoef over freqs,
+                      srcoverfreq = zeros(incomp,incomp,size(B1,1));
+                      for ifreq = 1:size(B1,1)
+                        srcoverfreq(:,:,ifreq) = abs(Scomp1(:,:,ifreq)'*Scomp2(:,:,ifreq));
+                      end
+                      % weight with average B and combine over freq
+                      Bweight    = bsxfun(@times,permute(B1',[1 3 2]),permute(B2',[3 1 2]));
+                      Bweight    = bsxfun(@rdivide,Bweight,sum(Bweight,3));
+                      srcsumfreq = sum(srcoverfreq .* Bweight,3);
                       % put in compsrc
-                      compcongr(icompfull,icompsplit,iparam) = abs(paramc1' * paramc2);
-                    case 3
-                      paramc1 = currcomp{1}{iparam}(:,icompfull);
-                      paramc2 = currcomp{2}{iparam}(:,icompsplit);
+                      compcongr(:,:,iparam) = srcsumfreq;
+                    case 'spacefsp'
+                      % create frequency specific phases weighted by spatial maps and frequency profiles
+                      A1 = currcomp{1}{1};
+                      A2 = currcomp{2}{1};
+                      B1 = currcomp{1}{2};
+                      B2 = currcomp{2}{2};
+                      L1 = currcomp{1}{4};
+                      L2 = currcomp{2}{4};
                       % normalize
-                      paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                      paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                      A1 = bsxfun(@rdivide,A1,sqrt(sum(abs(A1).^2,1)));
+                      A2 = bsxfun(@rdivide,A2,sqrt(sum(abs(A2).^2,1)));
+                      B1 = bsxfun(@rdivide,B1,sqrt(sum(abs(B1).^2,1)));
+                      B2 = bsxfun(@rdivide,B2,sqrt(sum(abs(B2).^2,1)));
+                      % construct spatial phase maps
+                      Lcomp1 = exp(1i*2*pi*permute(L1,[1 3 2]));
+                      Lcomp2 = exp(1i*2*pi*permute(L2,[1 3 2]));
+                      % scale with A
+                      Lcomp1 = bsxfun(@times,Lcomp1,A1);
+                      Lcomp2 = bsxfun(@times,Lcomp2,A2);
+                      % compute splitrelcoef over freqs,
+                      srcoverfreq = zeros(incomp,incomp,size(B1,1));
+                      for ifreq = 1:size(B1,1)
+                        srcoverfreq(:,:,ifreq) = abs(Lcomp1(:,:,ifreq)'*Lcomp2(:,:,ifreq));
+                      end
+                      % weight with average B and combine over freq
+                      Bweight    = bsxfun(@times,permute(B1',[1 3 2]),permute(B2',[3 1 2]));
+                      Bweight    = bsxfun(@rdivide,Bweight,sum(Bweight,3));
+                      srcsumfreq = sum(srcoverfreq .* Bweight,3);
                       % put in compsrc
-                      if numel(paramc1) == numel(paramc2)
-                        compcongr(icompfull,icompsplit,iparam) = abs(paramc1' * paramc2);
-                      else
-                        compcongr(icompfull,icompsplit,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
-                      end
-                    case 4
-                      switch model
-                        case 'spacetime'
-                          % create frequency specific phases weighted by spatial maps and frequency profiles
-                          A1 = currcomp{1}{1}(:,icompfull);
-                          A2 = currcomp{2}{1}(:,icompsplit);
-                          B1 = currcomp{1}{2}(:,icompfull);
-                          B2 = currcomp{2}{2}(:,icompsplit);
-                          S1 = currcomp{1}{4}(:,icompfull);
-                          S2 = currcomp{2}{4}(:,icompsplit);
-                          % normalize
-                          A1 = A1 ./ sqrt(sum(abs(A1).^2));
-                          A2 = A2 ./ sqrt(sum(abs(A2).^2));
-                          B1 = B1 ./ sqrt(sum(abs(B1).^2));
-                          B2 = B2 ./ sqrt(sum(abs(B2).^2));
-                          % construct complex site by freq matrix
-                          Scomp1 = exp(1i*2*pi*bsxfun(@times,S1,freq));
-                          Scomp2 = exp(1i*2*pi*bsxfun(@times,S2,freq));
-                          % scale with A
-                          Scomp1 = bsxfun(@times,Scomp1,A1);
-                          Scomp2 = bsxfun(@times,Scomp2,A2);
-                          % compute splitrelcoef over freqs, than abs, then average weighted with B
-                          srcoverfreq = abs(diag(Scomp1'*Scomp2));
-                          srcsumfreq  = sum(srcoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                          % put in compsrc
-                          compcongr(icompfull,icompsplit,iparam) = srcsumfreq;
-                        case 'spacefsp'
-                          % create frequency specific phases weighted by spatial maps and frequency profiles
-                          A1 = currcomp{1}{1}(:,icompfull);
-                          A2 = currcomp{2}{1}(:,icompsplit);
-                          B1 = currcomp{1}{2}(:,icompfull);
-                          B2 = currcomp{2}{2}(:,icompsplit);
-                          L1 = currcomp{1}{4}(:,:,icompfull);
-                          L2 = currcomp{2}{4}(:,:,icompsplit);
-                          % normalize
-                          A1 = A1 ./ sqrt(sum(abs(A1).^2));
-                          A2 = A2 ./ sqrt(sum(abs(A2).^2));
-                          B1 = B1 ./ sqrt(sum(abs(B1).^2));
-                          B2 = B2 ./ sqrt(sum(abs(B2).^2));
-                          % construct complex site by freq matrix
-                          Lcomp1 = exp(1i*2*pi*L1);
-                          Lcomp2 = exp(1i*2*pi*L2);
-                          % scale with A
-                          Lcomp1 = bsxfun(@times,Lcomp1,A1);
-                          Lcomp2 = bsxfun(@times,Lcomp2,A2);
-                          % compute splitrelcoef over freqs, than abs, then average weighted with B
-                          srcoverfreq = abs(diag(Lcomp1'*Lcomp2));
-                          srcsumfreq  = sum(srcoverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                          % put in compsrc
-                          compcongr(icompfull,icompsplit,iparam) = srcsumfreq;
-                      end
-                    case 5
-                      switch Dmode
-                        case 'identity'
-                          % D is fixed with arbitrary order, make its splitrel coefficient irrelevant
-                          compcongr(icompfull,icompsplit,iparam) = 1;
-                        case 'kdepcomplex'
-                          % scale with B
-                          B1 = currcomp{1}{2}(:,icompfull);
-                          B2 = currcomp{2}{2}(:,icompsplit);
-                          D1 = currcomp{1}{5}(:,:,icompfull);
-                          D2 = currcomp{2}{5}(:,:,icompsplit);
-                          D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
-                          D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
-                          % vectorize
-                          paramc1 = D1(:);
-                          paramc2 = D2(:);
-                          % normalize
-                          paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                          paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                          % put in compsrc
-                          compcongr(icompfull,icompsplit,iparam) = abs(paramc1' * paramc2);
-                      end
+                      compcongr(:,:,iparam) = srcsumfreq;
+                  end
+                case 5
+                  switch Dmode
+                    case 'identity'
+                      % D is fixed with arbitrary order, make its splitrel coefficient irrelevant
+                      compcongr(:,:,iparam) = 1;
+                    case 'kdepcomplex'
+                      B1 = currcomp{1}{2};
+                      B2 = currcomp{2}{2};
+                      D1 = currcomp{1}{5};
+                      D2 = currcomp{2}{5};
+                      % weight with B
+                      D1 = bsxfun(@times,D1,permute(B1,[1 3 2]));
+                      D2 = bsxfun(@times,D2,permute(B2,[1 3 2]));
+                      % vectorize
+                      paramc1 = reshape(permute(D1,[3 1 2]),[incomp numel(B1)]).';
+                      paramc2 = reshape(permute(D2,[3 1 2]),[incomp numel(B2)]).';
+                      % normalize
+                      paramc1 = bsxfun(@rdivide,paramc1,sqrt(sum(abs(paramc1).^2,1)));
+                      paramc2 = bsxfun(@rdivide,paramc2,sqrt(sum(abs(paramc2).^2,1)));
+                      % put in compsrc
+                      compcongr(:,:,iparam) = abs(paramc1' * paramc2);
                   end
               end
-            end
           end
         end
         % get splitrel coefficients by selecting most-similair unique pairings, but only for those that matter for the splitrel coeff
@@ -2290,117 +2298,125 @@ for irand1 = 1:nrand
       currcomp{2} = randcomp{irand2};
       % compute component congruence for all possible pairs between selected rands
       compcongr = zeros(ncomp,ncomp,length(currcomp{1}));
-      for icompr1 = 1:ncomp
-        for icompr2 = 1:ncomp
-          for iparam = 1:nparam
-            % perform model specific stuff
-            switch model
-              case {'parafac','parafac2','parafac2cp'}
-                paramc1 = currcomp{1}{iparam}(:,icompr1);
-                paramc2 = currcomp{2}{iparam}(:,icompr2);
+      for iparam = 1:nparam
+        % perform model specific stuff
+        switch model
+          case {'parafac','parafac2','parafac2cp'}
+            paramc1 = currcomp{1}{iparam};
+            paramc2 = currcomp{2}{iparam};
+            % normalize
+            paramc1 = bsxfun(@rdivide,paramc1,sqrt(sum(abs(paramc1).^2,1)));
+            paramc2 = bsxfun(@rdivide,paramc2,sqrt(sum(abs(paramc2).^2,1)));
+            % put in compsrc
+            compcongr(:,:,iparam) = abs(paramc1' * paramc2);
+          case {'spacetime','spacefsp'}
+            switch iparam
+              case {1,2}
+                paramc1 = currcomp{1}{iparam};
+                paramc2 = currcomp{2}{iparam};
                 % normalize
-                paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                paramc1 = bsxfun(@rdivide,paramc1,sqrt(sum(abs(paramc1).^2,1)));
+                paramc2 = bsxfun(@rdivide,paramc2,sqrt(sum(abs(paramc2).^2,1)));
                 % put in compsrc
-                compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
-              case {'spacetime','spacefsp'}
-                switch iparam
-                  case {1,2}
-                    paramc1 = currcomp{1}{iparam}(:,icompr1);
-                    paramc2 = currcomp{2}{iparam}(:,icompr2);
+                compcongr(:,:,iparam) = abs(paramc1' * paramc2);
+              case 3
+                paramc1 = currcomp{1}{iparam};
+                paramc2 = currcomp{2}{iparam};
+                % normalize
+                paramc1 = bsxfun(@rdivide,paramc1,sqrt(sum(abs(paramc1).^2,1)));
+                paramc2 = bsxfun(@rdivide,paramc2,sqrt(sum(abs(paramc2).^2,1)));
+                % put in compsrc
+                if size(paramc1,1) == size(paramc2,1)
+                  compcongr(:,:,iparam) = abs(paramc1' * paramc2);
+                else
+                  compcongr(:,:,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
+                end
+              case 4
+                switch model
+                  case 'spacetime'
+                    % create frequency specific phases weighted by spatial maps and frequency profiles
+                    A1 = currcomp{1}{1};
+                    A2 = currcomp{2}{1};
+                    B1 = currcomp{1}{2};
+                    B2 = currcomp{2}{2};
+                    S1 = currcomp{1}{4};
+                    S2 = currcomp{2}{4};
                     % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                    A1 = bsxfun(@rdivide,A1,sqrt(sum(abs(A1).^2,1)));
+                    A2 = bsxfun(@rdivide,A2,sqrt(sum(abs(A2).^2,1)));
+                    B1 = bsxfun(@rdivide,B1,sqrt(sum(abs(B1).^2,1)));
+                    B2 = bsxfun(@rdivide,B2,sqrt(sum(abs(B2).^2,1)));
+                    % construct spatial phase maps
+                    Scomp1 = ipermute(exp(1i*2*pi*bsxfun(@times,permute(S1,[3 1 2]),freq')),[3 1 2]);
+                    Scomp2 = ipermute(exp(1i*2*pi*bsxfun(@times,permute(S2,[3 1 2]),freq')),[3 1 2]);
+                    % scale with A
+                    Scomp1 = bsxfun(@times,Scomp1,A1);
+                    Scomp2 = bsxfun(@times,Scomp2,A2);
+                    % compute splitrelcoef over freqs,
+                    srcoverfreq = zeros(ncomp,ncomp,size(B1,1));
+                    for ifreq = 1:size(B1,1)
+                      srcoverfreq(:,:,ifreq) = abs(Scomp1(:,:,ifreq)'*Scomp2(:,:,ifreq));
+                    end
+                    % weight with average B and combine over freq
+                    Bweight    = bsxfun(@times,permute(B1',[1 3 2]),permute(B2',[3 1 2]));
+                    Bweight    = bsxfun(@rdivide,Bweight,sum(Bweight,3));
+                    srcsumfreq = sum(srcoverfreq .* Bweight,3);
                     % put in compsrc
-                    compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
-                  case 3
-                    paramc1 = currcomp{1}{iparam}(:,icompr1);
-                    paramc2 = currcomp{2}{iparam}(:,icompr2);
+                    compcongr(:,:,iparam) = srcsumfreq;
+                  case 'spacefsp'
+                    % create frequency specific phases weighted by spatial maps and frequency profiles
+                    A1 = currcomp{1}{1};
+                    A2 = currcomp{2}{1};
+                    B1 = currcomp{1}{2};
+                    B2 = currcomp{2}{2};
+                    L1 = currcomp{1}{4};
+                    L2 = currcomp{2}{4};
                     % normalize
-                    paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                    paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
+                    A1 = bsxfun(@rdivide,A1,sqrt(sum(abs(A1).^2,1)));
+                    A2 = bsxfun(@rdivide,A2,sqrt(sum(abs(A2).^2,1)));
+                    B1 = bsxfun(@rdivide,B1,sqrt(sum(abs(B1).^2,1)));
+                    B2 = bsxfun(@rdivide,B2,sqrt(sum(abs(B2).^2,1)));
+                    % construct spatial phase maps
+                    Lcomp1 = exp(1i*2*pi*permute(L1,[1 3 2]));
+                    Lcomp2 = exp(1i*2*pi*permute(L2,[1 3 2]));
+                    % scale with A
+                    Lcomp1 = bsxfun(@times,Lcomp1,A1);
+                    Lcomp2 = bsxfun(@times,Lcomp2,A2);
+                    % compute splitrelcoef over freqs,
+                    srcoverfreq = zeros(ncomp,ncomp,size(B1,1));
+                    for ifreq = 1:size(B1,1)
+                      srcoverfreq(:,:,ifreq) = abs(Lcomp1(:,:,ifreq)'*Lcomp2(:,:,ifreq));
+                    end
+                    % weight with average B and combine over freq
+                    Bweight    = bsxfun(@times,permute(B1',[1 3 2]),permute(B2',[3 1 2]));
+                    Bweight    = bsxfun(@rdivide,Bweight,sum(Bweight,3));
+                    srcsumfreq = sum(srcoverfreq .* Bweight,3);
                     % put in compsrc
-                    if numel(paramc1) == numel(paramc2)
-                      compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
-                    else
-                      compcongr(icompr1,icompr2,iparam) = 0; % congruence can't be computed, set to maximally incongruent (0)
-                    end
-                  case 4
-                    switch model
-                      case 'spacetime'
-                        % create frequency specific phases weighted by spatial maps and frequency profiles
-                        A1 = currcomp{1}{1}(:,icompr1);
-                        A2 = currcomp{2}{1}(:,icompr2);
-                        B1 = currcomp{1}{2}(:,icompr1);
-                        B2 = currcomp{2}{2}(:,icompr2);
-                        S1 = currcomp{1}{4}(:,icompr1);
-                        S2 = currcomp{2}{4}(:,icompr2);
-                        % normalize
-                        A1 = A1 ./ sqrt(sum(abs(A1).^2));
-                        A2 = A2 ./ sqrt(sum(abs(A2).^2));
-                        B1 = B1 ./ sqrt(sum(abs(B1).^2));
-                        B2 = B2 ./ sqrt(sum(abs(B2).^2));
-                        % construct complex site by freq matrix
-                        Scomp1 = exp(1i*2*pi*bsxfun(@times,S1,freq));
-                        Scomp2 = exp(1i*2*pi*bsxfun(@times,S2,freq));
-                        % scale with A
-                        Scomp1 = bsxfun(@times,Scomp1,A1);
-                        Scomp2 = bsxfun(@times,Scomp2,A2);
-                        % compute splitrelcoef over freqs, than abs, then average weighted with B
-                        sroverfreq = abs(diag(Scomp1'*Scomp2));
-                        srsumfreq  = sum(sroverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                        % put in compsrc
-                        compcongr(icompr1,icompr2,iparam) = srsumfreq;
-                      case 'spacefsp'
-                        % create frequency specific phases weighted by spatial maps and frequency profiles
-                        A1 = currcomp{1}{1}(:,icompr1);
-                        A2 = currcomp{2}{1}(:,icompr2);
-                        B1 = currcomp{1}{2}(:,icompr1);
-                        B2 = currcomp{2}{2}(:,icompr2);
-                        L1 = currcomp{1}{4}(:,:,icompr1);
-                        L2 = currcomp{2}{4}(:,:,icompr2);
-                        % normalize
-                        A1 = A1 ./ sqrt(sum(abs(A1).^2));
-                        A2 = A2 ./ sqrt(sum(abs(A2).^2));
-                        B1 = B1 ./ sqrt(sum(abs(B1).^2));
-                        B2 = B2 ./ sqrt(sum(abs(B2).^2));
-                        % construct complex site by freq matrix
-                        Lcomp1 = exp(1i*2*pi*L1);
-                        Lcomp2 = exp(1i*2*pi*L2);
-                        % scale with A
-                        Lcomp1 = bsxfun(@times,Lcomp1,A1);
-                        Lcomp2 = bsxfun(@times,Lcomp2,A2);
-                        % compute splitrelcoef over freqs, than abs, then average weighted with B
-                        sroverfreq = abs(diag(Lcomp1'*Lcomp2));
-                        srsumfreq  = sum(sroverfreq .* (B1.*B2)) ./ sum(B1.*B2);
-                        % put in compsrc
-                        compcongr(icompr1,icompr2,iparam) = srsumfreq;
-                    end
-                  case 5
-                    switch Dmode
-                      case 'identity'
-                        % D is fixed with arbitrary order, make its congruence coefficient irrelevant
-                        compcongr(icompr1,icompr2,iparam) = 1;
-                      case 'kdepcomplex'
-                        % scale with B
-                        B1 = currcomp{1}{2}(:,icompr1);
-                        B2 = currcomp{2}{2}(:,icompr2);
-                        D1 = currcomp{1}{5}(:,:,icompr1);
-                        D2 = currcomp{2}{5}(:,:,icompr2);
-                        D1 = D1 .* repmat(B1(:),[1 size(D1,2)]);
-                        D2 = D2 .* repmat(B2(:),[1 size(D2,2)]);
-                        % vectorize
-                        paramc1 = D1(:);
-                        paramc2 = D2(:);
-                        % normalize
-                        paramc1 = paramc1 ./ sqrt(sum(abs(paramc1).^2));
-                        paramc2 = paramc2 ./ sqrt(sum(abs(paramc2).^2));
-                        % put in compsrc
-                        compcongr(icompr1,icompr2,iparam) = abs(paramc1' * paramc2);
-                    end
+                    compcongr(:,:,iparam) = srcsumfreq;
+                end
+              case 5
+                switch Dmode
+                  case 'identity'
+                    % D is fixed with arbitrary order, make its congruence coefficient irrelevant
+                    compcongr(:,:,iparam) = 1;
+                  case 'kdepcomplex'
+                    B1 = currcomp{1}{2};
+                    B2 = currcomp{2}{2};
+                    D1 = currcomp{1}{5};
+                    D2 = currcomp{2}{5};
+                    % weight with B
+                    D1 = bsxfun(@times,D1,permute(B1,[1 3 2]));
+                    D2 = bsxfun(@times,D2,permute(B2,[1 3 2]));
+                    % vectorize
+                    paramc1 = reshape(permute(D1,[3 1 2]),[ncomp numel(B1)]).';
+                    paramc2 = reshape(permute(D2,[3 1 2]),[ncomp numel(B2)]).';
+                    % normalize
+                    paramc1 = bsxfun(@rdivide,paramc1,sqrt(sum(abs(paramc1).^2,1)));
+                    paramc2 = bsxfun(@rdivide,paramc2,sqrt(sum(abs(paramc2).^2,1)));
+                    % put in compsrc
+                    compcongr(:,:,iparam) = abs(paramc1' * paramc2);
                 end
             end
-          end
         end
       end
       % get cong coefficients by selecting most-similair unique pairings
