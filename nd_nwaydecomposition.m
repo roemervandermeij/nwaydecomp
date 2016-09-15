@@ -164,7 +164,7 @@ function [nwaycomp] = nd_nwaydecomposition(cfg,data)
 % cfg.distcomp.system          = 'p2p'
 % cfg.distcomp.p2presubdel     = scalar, resubmission delay for p2p in seconds (default = 60*60*24*3 (3 days))  (for p2p)
 % cfg.distcomp.qsuboptions     = string, (torque only) additional options command-line options for qsub specified as a string
-% cfg.ncompestsrcritjudge      = 'meanoversplits' or 'minofsplits'
+% cfg.ncompestsrcritjudge      = 'meanoversplitscons/lib' or 'minofsplitscons/lib', lib = picking SRC form best combination of randinits, cons = picking SRC of randinits with highest expvar
 % cfg.checkpointpath           = path to use for checkpointing, save entire workspace minus data to path with unique ID, useful for dist. comp. jobs getting cancelled etc
 %
 
@@ -235,7 +235,7 @@ cfg.ncompestend         = ft_getopt(cfg, 'ncompestend',            50);
 cfg.ncompeststep        = ft_getopt(cfg, 'ncompeststep',           1);
 cfg.ncompestsrdatparam  = ft_getopt(cfg, 'ncompestsrdatparam',     []);
 cfg.ncompestsrcritval   = ft_getopt(cfg, 'ncompestsrcritval',      0.7); % expanded to all paramameters later
-cfg.ncompestsrcritjudge = ft_getopt(cfg, 'ncompestsrcritjudge',    'minofsplits');
+cfg.ncompestsrcritjudge = ft_getopt(cfg, 'ncompestsrcritjudge',    'minofsplitslib');
 cfg.specialdims         = ft_getopt(cfg, 'specialdims',            []); % parafac2 specific
 cfg.ncompestvarinc      = ft_getopt(cfg, 'ncompestvarinc',         []);
 cfg.Dmode               = ft_getopt(cfg, 'Dmode',                  'identity'); %  spacefsp/spacetime specific
@@ -1661,23 +1661,38 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
     end % irandfull
   end % isplit
   
+  
   % determine failure or succes of current incomp
   if ~degenflg
     
-    % pick best possible compsrc to pass on per split, 'best' = randinitcomb with highest minimum of src - criterion
+    % deal with compsrcs
     compsrc = NaN([incomp numel(splitcomp{1}{1}) nsplit]);
-    for isplit = 1:nsplit
-      currcompsrc = partcombcompsrc{isplit};
-      for irandfull = 1:nndegenrandfull
-        for irandsplit = 1:nndegenrandsplit(isplit)
-          currcompsrc{irandfull,irandsplit} = currcompsrc{irandfull,irandsplit} - repmat(estsrccritval,[incomp 1]);
-          currcompsrc{irandfull,irandsplit} = currcompsrc{irandfull,irandsplit}(:,estsrccritval~=0);
+    switch estsrcritjudge
+      
+      case {'meanoversplitscons','minofsplitscons'}
+        % CONSERVATIVE pick best the first of each split
+        for isplit = 1:nsplit
+          compsrc(:,:,isplit) = partcombcompsrc{isplit}{1,1};
         end
-      end
-      maxminsrccoeff = cellfun(@min,cellfun(@min,currcompsrc,'uniformoutput',0));
-      [dum maxind] = max(maxminsrccoeff(:));
-      [rowind,colind] = ind2sub([nndegenrandfull nndegenrandsplit(isplit)],maxind);
-      compsrc(:,:,isplit) = partcombcompsrc{isplit}{rowind,colind};
+      
+      case {'meanoversplitslib','minofsplitslib'}
+        % LIBERAL pick best possible compsrc to pass on per split, 'best' = randinitcomb with highest minimum of src - criterion
+        for isplit = 1:nsplit
+          currcompsrc = partcombcompsrc{isplit};
+          for irandfull = 1:nndegenrandfull
+            for irandsplit = 1:nndegenrandsplit(isplit)
+              currcompsrc{irandfull,irandsplit} = currcompsrc{irandfull,irandsplit} - repmat(estsrccritval,[incomp 1]);
+              currcompsrc{irandfull,irandsplit} = currcompsrc{irandfull,irandsplit}(:,estsrccritval~=0);
+            end
+          end
+          maxminsrccoeff = cellfun(@min,cellfun(@min,currcompsrc,'uniformoutput',0));
+          [dum maxind] = max(maxminsrccoeff(:));
+          [rowind,colind] = ind2sub([nndegenrandfull nndegenrandsplit(isplit)],maxind);
+          compsrc(:,:,isplit) = partcombcompsrc{isplit}{rowind,colind};
+        end
+        
+      otherwise
+        error('specified cfg.ncompestsrcritjudge not supported')
     end
     
     %%% backwards compatability per August 2016 for oldsplithalf
@@ -1690,9 +1705,9 @@ while ~ncompfound % the logic used here is identical as in corcondiag, they shou
     
     % deal with multiple splits
     switch estsrcritjudge
-      case 'meanoversplits'
+      case {'meanoversplitscons','meanoversplitslib'}
         compsrc = mean(compsrc,3);
-      case 'minofsplits'
+      case {'minofsplitscons','minofsplitslib'}
         % do nothing
       otherwise
         error('specified cfg.ncompestsrcritjudge not supported')
