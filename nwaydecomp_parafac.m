@@ -80,13 +80,14 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 stopwatch = tic;
 
 % Get the optional input arguments
-keyvalcheck(varargin, 'optional', {'compmodes','niter','convcrit','startval','dispprefix','holdmodes'});
+keyvalcheck(varargin, 'optional', {'compmodes','niter','convcrit','startval','dispprefix','holdmodes','randomseed'});
 compmodes   = keyval('compmodes', varargin);
-niter       = keyval('niter', varargin);       if isempty(niter),        niter        = 2500;                  end
-convcrit    = keyval('convcrit', varargin);    if isempty(convcrit),     convcrit     = 1e-6;                  end
+niter       = keyval('niter', varargin);       if isempty(niter),        niter        = 2500;                    end
+convcrit    = keyval('convcrit', varargin);    if isempty(convcrit),     convcrit     = 1e-6;                    end
+randomseed  = keyval('randomseed', varargin);  if isempty(randomseed),   randomseed   = round(sum(clock.*1e6));  end
 startval    = keyval('startval', varargin);
-dispprefix  = keyval('dispprefix', varargin);  if isempty(dispprefix),   dispprefix   = [];                    end
-holdmodes   = keyval('holdmodes', varargin);   if isempty(holdmodes),    holdmodes    = [];                    end
+dispprefix  = keyval('dispprefix', varargin);  if isempty(dispprefix),   dispprefix   = [];                      end
+holdmodes   = keyval('holdmodes', varargin);   if isempty(holdmodes),    holdmodes    = [];                      end
 
 % load data from disk if string is given
 if ischar(dat)
@@ -99,6 +100,9 @@ if ischar(dat)
   dat = filecontent.(datvarname);
   clear filecontent
 end
+
+% set random seed (using clock as default)
+rng(randomseed)
 
 % set size and number of modes and compflg (and default compmodes)
 nmode = ndims(dat);
@@ -118,6 +122,7 @@ disp([dispprefix 'data is complex array with dimensions ' dimstring])
 disp([dispprefix 'a PARAFAC-model with ' num2str(ncomp) ' components will be estimated '])
 disp([dispprefix 'maximum number of iterations = ' num2str(niter)])
 disp([dispprefix 'convergence criterion = ' num2str(convcrit)])
+disp([dispprefix 'random seed = ' num2str(randomseed)])
 
 % throw errors for real/complex input with complex/real component matrices
 if ~compflg && sum(compmodes) ~= 0

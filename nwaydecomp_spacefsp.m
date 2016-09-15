@@ -85,15 +85,16 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core,Pkl] = nwaydecomp
 stopwatch = tic;
 
 % Get the optional input arguments
-keyvalcheck(varargin, 'optional', {'niter','convcrit','startval','dispprefix','precision','optimmode','degencrit','Dmode','holdparam'});
-niter        = keyval('niter', varargin);         if isempty(niter),        niter         = 2500;                  end
-convcrit     = keyval('convcrit', varargin);      if isempty(convcrit),     convcrit      = 1e-8;                  end
+keyvalcheck(varargin, 'optional', {'niter','convcrit','startval','dispprefix','precision','optimmode','degencrit','Dmode','holdparam','randomseed'});
+niter        = keyval('niter', varargin);         if isempty(niter),        niter         = 2500;                   end
+convcrit     = keyval('convcrit', varargin);      if isempty(convcrit),     convcrit      = 1e-8;                   end
 startval     = keyval('startval', varargin);
 dispprefix   = keyval('dispprefix', varargin); 
-precision    = keyval('precision', varargin);     if isempty(precision),    precision     = eps*1e7;               end
-degencrit    = keyval('degencrit', varargin);     if isempty(degencrit),    degencrit     = .9;                    end
-Dmode        = keyval('Dmode', varargin);         if isempty(Dmode),        Dmode         = 'identity';            end
-holdparam    = keyval('holdparam', varargin);     if isempty(holdparam),    holdparam     = zeros(1,5);            end
+precision    = keyval('precision', varargin);     if isempty(precision),    precision     = eps*1e7;                end
+randomseed   = keyval('randomseed', varargin);    if isempty(randomseed),   randomseed    = round(sum(clock.*1e6)); end
+degencrit    = keyval('degencrit', varargin);     if isempty(degencrit),    degencrit     = .9;                     end
+Dmode        = keyval('Dmode', varargin);         if isempty(Dmode),        Dmode         = 'identity';             end
+holdparam    = keyval('holdparam', varargin);     if isempty(holdparam),    holdparam     = zeros(1,5);             end
 holdparam    = logical(holdparam);
 optimmode    = keyval('optimmode', varargin);
 if isempty(optimmode) && strcmp(Dmode,'kdepcomplex')
@@ -130,8 +131,8 @@ if any(size(holdparam)~=[1 5])
   error('improper ''holdparam''')
 end
 
-% set random seed using clock
-rng(sum(clock.*1e6))
+% set random seed (using clock as default)
+rng(randomseed)
 
 % set size and number of modes and compflg (and default compmodes)
 nmode   = ndims(dat);
@@ -150,6 +151,7 @@ disp([dispprefix 'number of data-points per (relevant) parameter = ' num2str(pro
 disp([dispprefix 'maximum number of iterations = ' num2str(niter)])
 disp([dispprefix 'convergence criterion = ' num2str(convcrit)])
 disp([dispprefix 'precision used = ' num2str(precision)])
+disp([dispprefix 'random seed = ' num2str(randomseed)])
 
 % throw errors for inproper input
 if ~compflg || (nmode ~= 4)

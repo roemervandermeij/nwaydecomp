@@ -96,12 +96,13 @@ function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2(dat,ncom
 stopwatch = tic;
 
 % Get the optional input arguments
-keyvalcheck(varargin, 'optional', {'compmodes','specmodes','niter','convcrit','startval','dispprefix'});
+keyvalcheck(varargin, 'optional', {'compmodes','specmodes','niter','convcrit','startval','dispprefix','randomseed'});
 compmodes   = keyval('compmodes', varargin);
-niter       = keyval('niter', varargin);       if isempty(niter),        niter        = 2500;                  end
-convcrit    = keyval('convcrit', varargin);    if isempty(convcrit),     convcrit     = 1e-6;                  end
+niter       = keyval('niter', varargin);       if isempty(niter),        niter        = 2500;                    end
+convcrit    = keyval('convcrit', varargin);    if isempty(convcrit),     convcrit     = 1e-6;                    end
+randomseed  = keyval('randomseed', varargin);  if isempty(randomseed),   randomseed   = round(sum(clock.*1e6));  end
 startval    = keyval('startval', varargin);
-dispprefix  = keyval('dispprefix', varargin);  if isempty(dispprefix),   dispprefix   = [];                    end
+dispprefix  = keyval('dispprefix', varargin);  if isempty(dispprefix),   dispprefix   = [];                      end
 
 % load data from disk if string is given
 if ischar(dat)
@@ -114,6 +115,9 @@ if ischar(dat)
   dat = filecontent.(datvarname);
   clear filecontent
 end
+
+% set random seed (using clock as default)
+rng(randomseed)
 
 % set compflg and nmode
 compflg = ~isreal(dat);
@@ -201,6 +205,7 @@ disp([dispprefix 'data is complex array with dimensions ' dimstring])
 disp([dispprefix 'a PARAFAC2-model with ' num2str(ncomp) ' components will be estimated '])
 disp([dispprefix 'maximum number of iterations = ' num2str(niter)])
 disp([dispprefix 'convergence criterion = ' num2str(convcrit)])
+disp([dispprefix 'random seed = ' num2str(randomseed)])
 
 % concat real and imag parts of unfolded dats for real-valued minimization of real-valued modes
 disp([dispprefix 'component loading matrices of ' num2str(sum(compmodes)) ' modes will be complex' ])
