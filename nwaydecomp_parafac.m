@@ -40,6 +40,7 @@ function [comp,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_parafac(dat,
 %   'startval'    = previously computed start-values
 %   'dispprefix'  = prefix added to all disp-calls, handy when function is used in many loops after each other
 %   'holdmodes'   = vector of 0s and 1s indicating whether certain modes are not updated in each ALS-iteration
+%   'randomseed'  = scalar, seed to use for Matlab's random number generator
 %
 %
 %

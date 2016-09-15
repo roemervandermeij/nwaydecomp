@@ -59,6 +59,7 @@ function [comp,P,ssqres,expvar,scaling,tuckcongr] = nwaydecomp_parafac2cp(dat,nc
 %   'convcrit'    = convergence criterion (default = 1e-6)
 %   'startval'    = previously computed start-values
 %   'dispprefix'  = prefix added to all disp-calls, handy when function is used in many loops after each other
+%   'randomseed'  = scalar, seed to use for Matlab's random number generator
 %
 %
 %

@@ -55,6 +55,7 @@ function [comp,startval,ssqres,expvar,scaling,tuckcongr,t3core] = nwaydecomp_spa
 %   'degencrit'    = number, critical value at which to regard correlations between components as too high
 %   'Dmode'        = 'identity', 'kdepcomplex', type of D to estimate/use
 %   'holdparam'    = 1x5 vector of 0s and 1s indicating whether certain parameter sets are not updated in each ALS-iteration
+%   'randomseed'   = scalar, seed to use for Matlab's random number generator
 %
 %
 
