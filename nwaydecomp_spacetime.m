@@ -174,7 +174,7 @@ datexpfac = 0;
 for ik = 1:smode(2)
   for il = 1:smode(3)
     % select dat
-    currdatQ = permute(dat(:,ik,il,:),[1 4 2 3]);
+    currdatQ = double(permute(dat(:,ik,il,:),[1 4 2 3]));  % ensure double precision
     currdatQ(:,isnan(currdatQ(1,:))) = []; 
     csd = currdatQ*currdatQ';
     % get biggest negative exponent
