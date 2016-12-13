@@ -2008,7 +2008,7 @@ if ~isempty(distcomp.system)
         case 'torque'
           % increment timreq (should really be done based on size of data)
           distcomp.timreq = distcomp.timreq * ceil(ncomp/10);
-          distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'stack',distcomp.torquestack,'options',['-V ', distcomp.qsuboptions],'sleep',5};
+          distcompopt = {'backend','torque','queue',distcomp.torquequeue,'timreq', distcomp.timreq,'matlabcmd',distcomp.matlabcmd,'stack',distcomp.torquestack,'options',['-V ', distcomp.qsuboptions],'sleep',30};
           distcompfun = @qsubcellfun;
         otherwise
           error('distributed computing system not supported')
